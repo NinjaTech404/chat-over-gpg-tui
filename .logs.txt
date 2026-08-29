@@ -1,0 +1,14 @@
+[1/2] Building CXX object CMakeFiles/main.dir/src/main.cpp.o
+FAILED: [code=1] CMakeFiles/main.dir/src/main.cpp.o 
+/usr/bin/c++  -I/home/paradox/Projects/chat-over-ssl-tui/include -I/home/paradox/Projects/chat-over-ssl-tui/src -isystem /home/paradox/Projects/chat-over-ssl-tui/lib/ftxui/include  -MD -MT CMakeFiles/main.dir/src/main.cpp.o -MF CMakeFiles/main.dir/src/main.cpp.o.d -o CMakeFiles/main.dir/src/main.cpp.o -c /home/paradox/Projects/chat-over-ssl-tui/src/main.cpp
+/home/paradox/Projects/chat-over-ssl-tui/src/main.cpp: In function ‘int main()’:
+/home/paradox/Projects/chat-over-ssl-tui/src/main.cpp:11:18: error: ‘text’ was not declared in this scope; did you mean ‘ftxui::text’?
+   11 |   Render(screen, text("Let me go!"));
+      |                  ^~~~
+      |                  ftxui::text
+In file included from /home/paradox/Projects/chat-over-ssl-tui/lib/ftxui/include/ftxui/dom/elements.hpp:234,
+                 from /home/paradox/Projects/chat-over-ssl-tui/src/main.cpp:3:
+/home/paradox/Projects/chat-over-ssl-tui/lib/ftxui/include/ftxui/dom/deprecated.hpp:12:27: note: ‘ftxui::text’ declared here
+   12 | FTXUI_EXPORT(DOM) Element text(std::wstring_view text);
+      |                           ^~~~
+ninja: build stopped: subcommand failed.
