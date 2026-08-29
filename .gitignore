@@ -1,0 +1,8 @@
+build
+include/boost.Asio/
+include/boost_1_92_0/
+include/nlohmann/
+lib/ftxui/
+.log.sha256
+.logs.txt
+
