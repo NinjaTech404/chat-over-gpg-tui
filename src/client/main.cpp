@@ -1,24 +1,4 @@
-#include <iostream>
-#include <string>
-#include <cmath>
-#include <chrono>
-#include <deque>
-#include <vector>
-#include <thread>
-#include <functional>
-
-#include <client/scroller.cpp>
-
-#include <nlohmann/json.hpp>
-
-#include <ftxui/component/component.hpp>
-#include <ftxui/component/screen_interactive.hpp>
-#include <ftxui/dom/elements.hpp>
-
-#include <server/emtp.cpp>
-
-
-
+#include <client/main.hpp>
 using namespace ftxui;
 using tcp = boost::asio::ip::tcp;
 using boost::asio::io_context;
@@ -27,7 +7,7 @@ using namespace boost;
 
 const char* description_sample = "Just a bunch of devs and sysadmins who love building stuff, breaking stuff, and learning from the chaos. We talk about cloud-native architecture, CI/CD pipelines, container orchestration, and the occasional existential crisis about microservices. All skill levels welcome – bring your curiosity and your favorite terminal emulator.";
 
-static auto ui = ScreenInteractive::Fullscreen();
+auto ui = std::make_shared<ScreenInteractive>(ScreenInteractive::Fullscreen());
 class Message {
   private:
     std::string ID;
@@ -93,7 +73,7 @@ auto text_input (std::string& message, std::shared_ptr<io_context> io, std::shar
       
       asio::post(*io, [socket, msg = message]{
         socket->async_write_some(asio::buffer(msg), [](system::error_code ec, std::size_t len){
-          ui.PostEvent(Event::Custom);
+          ui->PostEvent(Event::Custom);
         });
       });
 
@@ -166,7 +146,7 @@ std::thread tcp_connection(std::shared_ptr<io_context> io, std::shared_ptr<tcp::
               );
               data->resize(1024);
 
-              ui.PostEvent(Event::Custom);
+              ui->PostEvent(Event::Custom);
             }
           
 
@@ -220,11 +200,13 @@ int main(int argc, char **argv) {
     auto endpoint = tcp::endpoint(asio::ip::make_address(argv[1]), std::stoi(argv[2]));
 
 
-    auto work = make_work_guard(*io);
-    auto chat_connection =  tcp_connection(io, socket, endpoint);
-
-    ui.Loop(client_screen(io, socket));
+    //auto work = make_work_guard(*io);
+    // auto chat_connection =  tcp_connection(io, socket, endpoint);
+      
+  
+    Component login = std::make_shared<gpgui::login>(ui);
+    ui->Loop(login);
     
-    chat_connection.join();
+    // chat_connection.join();
     return 0;
 }

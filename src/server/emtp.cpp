@@ -1,3 +1,7 @@
+#ifndef EMTP_HPP
+#define EMTP_HPP
+
+
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/write.hpp>
@@ -115,4 +119,5 @@ namespace emtp{
     });
   }
 }
+#endif
 

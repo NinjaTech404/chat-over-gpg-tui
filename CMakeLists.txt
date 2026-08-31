@@ -25,10 +25,22 @@ add_executable(client ${CLIENT})
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/ftxui)
 
+find_package(Gpgmepp REQUIRED)
+
 target_link_libraries(
   client
   PRIVATE ftxui::screen
   PRIVATE ftxui::dom
   PRIVATE ftxui::component
+  Gpgmepp
 )
+
+target_link_libraries(
+  server
+  PRIVATE ftxui::screen
+  PRIVATE ftxui::dom
+  PRIVATE ftxui::component
+  Gpgmepp
+)
+
 

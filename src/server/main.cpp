@@ -5,6 +5,10 @@
 #include <boost/asio/io_context.hpp>
 #include <boost/system.hpp>
 
+#include <ftxui/component/screen_interactive.hpp>
+#include <ftxui/component/component.hpp>
+#include <ftxui/dom/elements.hpp>
+
 #include <nlohmann/json.hpp>
 
 #include <thread>
@@ -113,25 +117,27 @@ std::thread server (tcp::endpoint ep){
 
     };
 
-    
-
-    
-
     asio::post(io,*sock_loop);
         
-
-
     io.run();
+
   });
 };
 
 
+using namespace ftxui;
+
+
+
 
 int main(int argc, char** argv){
+  
+
 
   std::thread start = server(tcp::endpoint(asio::ip::make_address(argv[1]), std::stoi(argv[2])));
   
   start.join();
+  
 
   return 0;
 }
