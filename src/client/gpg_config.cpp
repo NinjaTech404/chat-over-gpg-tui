@@ -80,8 +80,8 @@ namespace gpgui{
             text(std::string(" Email: ") + keys[i].userID(0).email() + ' ') | flex
           }),
           separatorHeavy(),
-          text(std::string(" Fingerprint: ") + keys[i].primaryFingerprint())
-        }) | borderHeavy | (selected == i? color(Color::Cyan) : color(Color::White))
+          text(std::string(" Fingerprint: ") + keys[i].primaryFingerprint() + ' ')
+        }) | borderHeavy | (selected == i? color(Color::Cyan) : color(Color::White) | dim)
       );
     }
 
@@ -90,8 +90,8 @@ namespace gpgui{
       separatorDouble(),
       vbox(gpgAccounts),
       separatorDouble(),
-      paragraphAlignCenter(" Use the arows up/down or the k/j buttons to select the key. ") | color(Color::Magenta)
-    }) | borderDouble | color(Color::Blue) | center ;
+      paragraphAlignCenter(" Use the arows up/down or the k/j buttons to select the key \n press ENTER to confirm or ESC/Q to quit. ") | color(Color::Magenta)
+    }) | borderDouble | color(Color::Blue) | center;
 
   }
 
