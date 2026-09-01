@@ -200,12 +200,23 @@ int main(int argc, char **argv) {
     auto endpoint = tcp::endpoint(asio::ip::make_address(argv[1]), std::stoi(argv[2]));
 
 
-    //auto work = make_work_guard(*io);
+    // auto work = make_work_guard(*io);
     // auto chat_connection =  tcp_connection(io, socket, endpoint);
       
-  
-    Component login = std::make_shared<gpgui::login>(ui);
-    ui->Loop(login);
+    std::shared_ptr<gpgui::login> login = std::make_shared<gpgui::login>(ui);
+    std::shared_ptr<GpgME::Key> clientAccount = std::make_shared<GpgME::Key>();
+
+    Component loginWrapper = CatchEvent(login, [login, &clientAccount](Event e){
+      if(e == Event::Return){
+        clientAccount = login->getSelected();
+        return true;
+      }
+      return false;
+    });
+
+    std::shared_ptr<gpgui::recipientMenu> recipientUI = std::make_shared<gpgui::recipientMenu>(ui);
+    
+    ui->Loop(recipientUI);
     
     // chat_connection.join();
     return 0;
