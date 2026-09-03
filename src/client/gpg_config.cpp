@@ -26,7 +26,10 @@ namespace gpgui{
     
     std::string HEADER = " You might select only one GPG account of yours.\n "
                          " NOTE: make sure your PRIVATE/SECRET key is present. ";
-    
+   
+    std::string FOOTER = " Use the arows up/down or the k/j buttons to select the key \n"
+                         " press ENTER to confirm or ESC/Q to quit. ";
+
     std::vector<GpgME::Key> keys;
     
     int selected = 0;
@@ -39,6 +42,7 @@ namespace gpgui{
       std::shared_ptr<GpgME::Key> getSelected();
       Element OnRender() override;
       bool OnEvent(Event e) override;
+      bool Focusable() const final;
 
   };
 
@@ -90,15 +94,24 @@ namespace gpgui{
         }) | borderHeavy | (selected == i? color(Color::Cyan) : color(Color::White) | dim)
       );
     }
+    
+    Element defaultMessage = vbox({
+      paragraphAlignCenter( " [!] WARNING " ) | color(Color::Yellow),
+      separatorDouble(),
+      paragraphAlignCenter(" It seems that you either don't have GnuPG installed, \n you haven't yet initialized your keyrings or you \n didn't CREATE/IMPORT your personal GnuPG keys. \n please manually check that you have one. ") | color(Color::Yellow),
+      separatorDouble(),
+      paragraphAlignCenter(" press ESC/Q to quit. ") | color(Color::Magenta)
+    }) | borderDouble | color(Color::Blue) | center;
 
-    return vbox({
+    Element keysMenu = vbox({
       paragraphAlignCenter(this->HEADER) | color(Color::Yellow),
       separatorDouble(),
       vbox(gpgAccounts),
       separatorDouble(),
-      paragraphAlignCenter(" Use the arows up/down or the k/j buttons to select the key \n press ENTER to confirm or ESC/Q to quit. ") | color(Color::Magenta)
+      paragraphAlignCenter(this->FOOTER) | color(Color::Magenta)
     }) | borderDouble | color(Color::Blue) | center;
 
+    return keys.size() > 0 ? keysMenu : defaultMessage;
   }
 
   bool login::OnEvent(Event e){
@@ -128,6 +141,7 @@ namespace gpgui{
     return true;
   }
 
+  bool login::Focusable() const { return true; }
 
   /* >=====> Select Recipient UI <=====< */
 
@@ -155,6 +169,8 @@ namespace gpgui{
       recipientMenu(std::shared_ptr<ScreenInteractive>);
       Element OnRender () override;
       bool OnEvent (Event) override;
+      bool Focusable() const final;
+      std::shared_ptr<std::vector<GpgME::Key>> getRecipientsKeys(void) const;
   };
 
 
@@ -202,8 +218,17 @@ namespace gpgui{
       );
     }
 
+    Element defaultMessage = vbox({
+      paragraphAlignCenter( " [!] WARNING " ) | color(Color::Yellow),
+      separatorDouble(),
+      paragraphAlignCenter(" It seems that you either don't have GnuPG installed, \n you haven't yet initialized your keyrings or you \n didn't CREATE/IMPORT your personal GnuPG keys. \n please manually check that you have one. ") | color(Color::Yellow),
+      separatorDouble(),
+      paragraphAlignCenter(" press ESC/Q to quit. ") | color(Color::Magenta)
+    }) | borderDouble | color(Color::Blue) | center;
+
+
     Element trustConcern = vbox({
-      text(" --- Trust Warning --- ") | bold | color(Color::Yellow) | center,
+      text(" ── Trust Warning ── ") | bold | color(Color::Yellow) | center,
       separatorDouble(),
       paragraph(" Only trust keys with: ") | size(WIDTH, LESS_THAN, 30),
       text(" • Full") | color(Color::Green),
@@ -233,7 +258,7 @@ namespace gpgui{
       trustConcern 
     }) | size(WIDTH, LESS_THAN, 30); 
 
-    return hbox({
+    Element keysMenu = hbox({
       vbox({
         paragraphAlignCenter(this->HEADER) | color(Color::Yellow),
         separatorDouble(),
@@ -244,6 +269,7 @@ namespace gpgui{
       trustLevelLegend
     }) | center; 
      
+    return keys.size() > 0? keysMenu : defaultMessage;
   }
   
   bool recipientMenu::OnEvent (Event e){
@@ -307,7 +333,13 @@ namespace gpgui{
       return true;
     }
 
-    return true;
+    return false;
+  }
+
+  bool recipientMenu::Focusable() const { return true; }
+
+  std::shared_ptr<std::vector<GpgME::Key>> recipientMenu::getRecipientsKeys(void) const{
+    return std::make_shared<std::vector<GpgME::Key>>(recipients);
   }
 
   Element recipientMenu::getTrustLevel(GpgME::Key key) {
