@@ -200,8 +200,8 @@ int main(int argc, char **argv) {
     auto endpoint = tcp::endpoint(asio::ip::make_address(argv[1]), std::stoi(argv[2]));
 
 
-    auto work = make_work_guard(*io);
-    auto chat_connection =  tcp_connection(io, socket, endpoint);
+    // auto work = make_work_guard(*io);
+    // auto chat_connection =  tcp_connection(io, socket, endpoint);
       
     int currentScreen = static_cast<int>(Screens::Login);
 
@@ -210,6 +210,7 @@ int main(int argc, char **argv) {
 
     std::shared_ptr<gpgui::login> login = std::make_shared<gpgui::login>(ui);
     std::shared_ptr<gpgui::recipientMenu> recipientUI = std::make_shared<gpgui::recipientMenu>(ui);
+    std::shared_ptr<gpgui::clientChatScreen> clientChat = std::make_shared<gpgui::clientChatScreen>();
 
 
     Component loginWrapper = CatchEvent(login, [&](Event e){
@@ -225,20 +226,20 @@ int main(int argc, char **argv) {
     Component recipientUIWrapper = CatchEvent(recipientUI, [&](Event e){
       if(e == Event::Return){
         recipientKeys = recipientUI->getRecipientsKeys();
-        currentScreen = static_cast<int>(Screens::ClientScreen);
-        return true;
+        if (recipientKeys->size() > 0) currentScreen = static_cast<int>(Screens::ClientScreen);
+        return false;
       }
       return false;
 
     });
 
-    std::vector<Component> screens = {loginWrapper, recipientUIWrapper, client_screen(io, socket)};
+    std::vector<Component> screens = {loginWrapper, recipientUIWrapper, clientChat };
 
     Component tab_container = Container::Tab(screens, &currentScreen);
 
 
-    ui->Loop(tab_container);
+    ui->Loop(clientChat);
 
-    chat_connection.join();
+    // chat_connection.join();
     return 0;
 }

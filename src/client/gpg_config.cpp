@@ -96,7 +96,7 @@ namespace gpgui{
     }
     
     Element defaultMessage = vbox({
-      paragraphAlignCenter( " [!] WARNING " ) | color(Color::Yellow),
+      paragraphAlignCenter( " ── [!] WARNING ── " ) | color(Color::Yellow),
       separatorDouble(),
       paragraphAlignCenter(" It seems that you either don't have GnuPG installed, \n you haven't yet initialized your keyrings or you \n didn't CREATE/IMPORT your personal GnuPG keys. \n please manually check that you have one. ") | color(Color::Yellow),
       separatorDouble(),
@@ -111,7 +111,7 @@ namespace gpgui{
       paragraphAlignCenter(this->FOOTER) | color(Color::Magenta)
     }) | borderDouble | color(Color::Blue) | center;
 
-    return keys.size() > 0 ? keysMenu : defaultMessage;
+    return keys.size() > 0? keysMenu : defaultMessage;
   }
 
   bool login::OnEvent(Event e){
@@ -138,7 +138,7 @@ namespace gpgui{
       return true;
     }
 
-    return true;
+    return false;
   }
 
   bool login::Focusable() const { return true; }
@@ -219,7 +219,7 @@ namespace gpgui{
     }
 
     Element defaultMessage = vbox({
-      paragraphAlignCenter( " [!] WARNING " ) | color(Color::Yellow),
+      paragraphAlignCenter( " ── [!] WARNING ── " ) | color(Color::Yellow),
       separatorDouble(),
       paragraphAlignCenter(" It seems that you either don't have GnuPG installed, \n you haven't yet initialized your keyrings or you \n didn't CREATE/IMPORT your personal GnuPG keys. \n please manually check that you have one. ") | color(Color::Yellow),
       separatorDouble(),
@@ -333,6 +333,19 @@ namespace gpgui{
       return true;
     }
 
+    if(e == Event::Return){
+      if(!(recipients.size() > 0)){
+        this->HEADER = " ── [!] WARNING ── \n" 
+                       " You must at least select one recipient key! ";
+      }
+      else {
+        this->HEADER = " Select the recipient (PUBLIC key) accounts to start chatting. \n"
+                         " You can select multiple recipients keys. ";
+      }
+      
+      return true;
+    }
+
     return false;
   }
 
@@ -375,6 +388,72 @@ namespace gpgui{
     }
     return false;
   }
+  
+
+  /* >=====> Customized Button <=====< */
+
+  class customButton : public ComponentBase{
+    std::string LABEL = " Menu ";
+    public:
+      Element OnRender() override;
+      bool OnEvent(Event) override;
+      bool Focusable() const final;
+  };
+
+  Element customButton::OnRender() {
+    return text(this->LABEL);
+  };
+
+  bool customButton::OnEvent(Event e){
+    if(e.is_mouse()){
+      Mouse mouse = e.mouse();
+      if(mouse.button == Mouse::Left && mouse.motion == Mouse::Pressed){
+        this->LABEL = " CLICKED ";
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool customButton::Focusable() const { return true; }
+  
+  /* >=====> Select Client Chat Screen UI <=====< */
+
+  class clientChatScreen : public ComponentBase{
+    std::string INPUT_TEXT;
+    std::shared_ptr<customButton> menuButton = std::make_shared<customButton>();
+    Component intput = Input(&INPUT_TEXT, "Enter: ");
+
+
+    public:
+      Element OnRender() override;
+      bool OnEvent(Event) override;
+      bool Focusable() const final;
+  };
+
+  Element clientChatScreen::OnRender(){
+    return hbox({
+      vbox({
+        vbox({
+          hbox({
+            text("test") | flex,
+            menuButton->Render()
+          }),
+          separatorDouble(),
+        }) | borderDouble | flex,
+        vbox({
+          intput->Render() | borderDouble
+        }) ,
+      }) | flex
+    }) | flex;
+  }
+  
+  bool clientChatScreen::OnEvent(Event e){
+    return false;
+  }
+
+  bool clientChatScreen::Focusable() const { return true; }
+  
 }
 
 #endif
