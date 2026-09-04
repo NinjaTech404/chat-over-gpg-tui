@@ -210,7 +210,7 @@ int main(int argc, char **argv) {
 
     std::shared_ptr<gpgui::login> login = std::make_shared<gpgui::login>(ui);
     std::shared_ptr<gpgui::recipientMenu> recipientUI = std::make_shared<gpgui::recipientMenu>(ui);
-    std::shared_ptr<gpgui::clientChatScreen> clientChat = std::make_shared<gpgui::clientChatScreen>();
+    std::shared_ptr<gpgui::clientChatScreen> clientChat = std::make_shared<gpgui::clientChatScreen>(ui);
 
 
     Component loginWrapper = CatchEvent(login, [&](Event e){

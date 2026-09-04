@@ -393,23 +393,31 @@ namespace gpgui{
   /* >=====> Customized Button <=====< */
 
   class customButton : public ComponentBase{
-    std::string LABEL = " Menu ";
+    std::shared_ptr<std::string> LABEL;
+    std::shared_ptr<bool> isClicked;
+    Box box_;
     public:
+      customButton(std::shared_ptr<bool>, std::shared_ptr<std::string>);
       Element OnRender() override;
       bool OnEvent(Event) override;
       bool Focusable() const final;
   };
 
+  customButton::customButton(std::shared_ptr<bool> clicked, std::shared_ptr<std::string> label) : isClicked(clicked), LABEL(label) {}
+
   Element customButton::OnRender() {
-    return text(this->LABEL);
+    return text(*(this->LABEL)) | center | reflect(box_);
   };
 
   bool customButton::OnEvent(Event e){
     if(e.is_mouse()){
       Mouse mouse = e.mouse();
-      if(mouse.button == Mouse::Left && mouse.motion == Mouse::Pressed){
-        this->LABEL = " CLICKED ";
-        return true;
+      if(box_.Contain(mouse.x, mouse.y)){
+        if(mouse.button == Mouse::Left && mouse.motion == Mouse::Pressed){
+          TakeFocus();
+          *isClicked = !(*isClicked);
+          return true;
+        }
       }
     }
     return false;
@@ -417,39 +425,132 @@ namespace gpgui{
 
   bool customButton::Focusable() const { return true; }
   
-  /* >=====> Select Client Chat Screen UI <=====< */
+  /* >=====> The Message Component <=====< */
 
-  class clientChatScreen : public ComponentBase{
-    std::string INPUT_TEXT;
-    std::shared_ptr<customButton> menuButton = std::make_shared<customButton>();
-    Component intput = Input(&INPUT_TEXT, "Enter: ");
-
-
+  class Message : public ComponentBase {
     public:
       Element OnRender() override;
       bool OnEvent(Event) override;
       bool Focusable() const final;
   };
 
+  Element Message::OnRender(){
+    return vbox({
+      hbox({
+        text(" client name ") | color(Color::Cyan),
+        separatorHeavy(),
+        text(" 42EF08B93C21423CCBAE73DABE4A8FC973D91DD0 ") | color(Color::Blue),
+        separatorHeavy(),
+        filler(),
+        separatorHeavy(),
+        text(" 2026-09-04 05:43 ") | color(Color::Yellow),
+        separatorHeavy(),
+        text(" Delivered ") | color(Color::Cyan)
+      }),
+      separatorHeavy(),
+      text(" Message Body: \n - One \n - Two \n - Three ") | color(Color::White)
+    }) | borderHeavy | color(Color::Green);
+  }
+
+  bool Message::OnEvent(Event e) {
+    return false;
+  }
+
+  bool Message::Focusable() const { return true; }
+
+  /* >=====> Select Client Chat Screen UI <=====< */
+
+  class clientChatScreen : public ComponentBase{
+
+    std::string INPUT_TEXT;
+    std::shared_ptr<ScreenInteractive> screen;
+
+    std::shared_ptr<std::string> buttonLabel = std::make_shared<std::string>(" Menu ");
+    std::shared_ptr<bool> toggleMenu = std::make_shared<bool>(true);
+    std::shared_ptr<customButton> menuButton = std::make_shared<customButton>(toggleMenu, buttonLabel);
+
+    std::shared_ptr<Message> message = std::make_shared<Message>();
+
+    Component input_;
+    Component container_;
+
+    public:
+      clientChatScreen(std::shared_ptr<ScreenInteractive>);
+      Element OnRender() override;
+      bool OnEvent(Event) override;
+      bool Focusable() const final;
+  };
+
+  clientChatScreen::clientChatScreen(std::shared_ptr<ScreenInteractive> screen_) : screen(screen_) {
+
+    input_ = Input(&INPUT_TEXT, " Enter: ");
+    container_ = Container::Vertical({input_, menuButton, message});
+
+    Add(container_);
+  }
+
   Element clientChatScreen::OnRender(){
+
+    Element sideBar = [&] {
+      
+      if(*toggleMenu){
+        *buttonLabel = " Close ";
+        return vbox({ 
+            hbox({
+              paragraphAlignCenter(" ── Menu Options ── ") | flex,
+              *toggleMenu ? separatorDouble() : text(""),
+              *toggleMenu ? menuButton->Render() : text(""),
+            }),
+            separatorDouble()
+        }) | borderDouble | flex | size(WIDTH, EQUAL, 40);
+      }
+      else{
+        *buttonLabel = " Menu ";
+        return text("");
+      }
+      
+    }();
+
+    Element header = hbox({
+      paragraphAlignCenter(" ── Server Name ── ") | flex,
+      !(*toggleMenu) ? separatorDouble() : text(""),
+      !(*toggleMenu) ? menuButton->Render() : text(""),
+    });
+
+    Element defaultChatMessage = vbox({
+      hbox({ paragraphAlignCenter(" ── [!] EMPTY CHAT ── ")}) | center,
+      separatorHeavy(),
+      paragraphAlignCenter(" No messages yet? Wait until someone sends a message \n or you can send the first message so others can see it. ")
+    }) | borderHeavy | center | color(Color::Yellow);
+
+    Element chatMessages = vbox({
+      // filler(),
+      // defaultChatMessage,
+      filler(),
+      message->Render()
+    }) | flex;
+
     return hbox({
       vbox({
-        vbox({
-          hbox({
-            text("test") | flex,
-            menuButton->Render()
-          }),
-          separatorDouble(),
-        }) | borderDouble | flex,
-        vbox({
-          intput->Render() | borderDouble
-        }) ,
-      }) | flex
+          vbox({
+            header,
+            separatorDouble(),
+            chatMessages | flex,
+          }) | borderDouble | flex,
+          vbox({
+            input_->Render() | bgcolor(Color::Black) | color(Color::White) | borderDouble
+          }) ,
+      }) | flex,
+      sideBar
     }) | flex;
   }
   
   bool clientChatScreen::OnEvent(Event e){
-    return false;
+    if(e == Event::Escape){
+      screen->Exit();
+      return true;
+    }
+    return container_->OnEvent(e);
   }
 
   bool clientChatScreen::Focusable() const { return true; }
