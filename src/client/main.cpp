@@ -187,7 +187,7 @@ auto client_screen(std::shared_ptr<io_context> io, std::shared_ptr<tcp::socket> 
   });
 }
 
-enum class Screens : char { Login = 0, RecipientMenu = 1, ClientScreen = 2};
+enum class Screens : char { Login = 0, RecipientMenu = 1, ClientScreen = 2, PassphrasePrompt = 3, ErrorMessage = 4};
 
 int main(int argc, char **argv) {
     if (argc < 3) {
@@ -207,17 +207,52 @@ int main(int argc, char **argv) {
 
     std::shared_ptr<GpgME::Key> clientAccount = std::make_shared<GpgME::Key>();
     std::shared_ptr<std::vector<GpgME::Key>> recipientKeys =  std::make_shared<std::vector<GpgME::Key>>();
+  
+
+    std::shared_ptr<std::function<void()>> error_message_handler = std::make_shared<std::function<void()>>();
+    std::shared_ptr<std::string> error_message = std::make_shared<std::string>();
+    std::shared_ptr<std::string> passphrase = std::make_shared<std::string>();
 
     std::shared_ptr<gpg_screens::login> login = std::make_shared<gpg_screens::login>(ui);
     std::shared_ptr<gpg_screens::recipientMenu> recipientUI = std::make_shared<gpg_screens::recipientMenu>(ui);
     std::shared_ptr<screens::clientChatScreen> clientChat = std::make_shared<screens::clientChatScreen>(ui);
+    std::shared_ptr<screens::ErrorMessage> errorUI = std::make_shared<screens::ErrorMessage>(ui, error_message, error_message_handler);
 
+
+    std::shared_ptr<screens::PassphrasePrompt> passphrasePrompt = std::make_shared<screens::PassphrasePrompt>(ui, passphrase, [&]{
+      try{
+        gpg::is_passphrase_correct(clientAccount, passphrase);
+        currentScreen = static_cast<int>(Screens::RecipientMenu);
+      } catch(const std::runtime_error& err){
+        *error_message = err.what();
+        *error_message_handler = [&]{
+          currentScreen = static_cast<int>(Screens::PassphrasePrompt);
+        };
+        currentScreen = static_cast<int>(Screens::ErrorMessage);
+      }
+    });
+    
 
     Component loginWrapper = CatchEvent(login, [&](Event e){
       if(e == Event::Return){
-        clientAccount = login->getSelected();
-        currentScreen = static_cast<int>(Screens::RecipientMenu);
-        return true;
+       
+        try {
+
+          clientAccount = login->getSelected();
+          gpg::can_key_decrypt(*clientAccount);
+          currentScreen = static_cast<int>(Screens::PassphrasePrompt);
+
+        }
+        catch (const std::runtime_error& err) {
+          *error_message = err.what();
+          *error_message_handler = [&]{
+            currentScreen = static_cast<int>(Screens::Login);
+          };
+          currentScreen = static_cast<int>(Screens::ErrorMessage);
+        }
+  
+
+        return false;
       }
       return false;
 
@@ -233,12 +268,12 @@ int main(int argc, char **argv) {
 
     });
 
-    std::vector<Component> screensUI = {loginWrapper, recipientUIWrapper, clientChat };
+    std::vector<Component> screensUI = {loginWrapper, recipientUIWrapper, clientChat, passphrasePrompt, errorUI};
 
     Component tab_container = Container::Tab(screensUI, &currentScreen);
 
 
-    ui->Loop(clientChat);
+    ui->Loop(tab_container);
 
     // chat_connection.join();
     return 0;

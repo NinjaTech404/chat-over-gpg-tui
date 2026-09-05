@@ -21,6 +21,7 @@ namespace gpg_screens{
 
   using namespace ftxui;
 
+
   /* >=====> Login UI <=====< */
   class login : public ComponentBase{
     
@@ -49,7 +50,7 @@ namespace gpg_screens{
   login::login(std::shared_ptr<ScreenInteractive> screen_) : screen(screen_){
 
     GpgME::initializeLibrary();
-    auto ctx = std::unique_ptr<GpgME::Context>(GpgME::Context::create(GpgME::OpenPGP));
+    std::unique_ptr<GpgME::Context> ctx = GpgME::Context::create(GpgME::OpenPGP);
 
     ctx->setKeyListMode(GpgME::Local | GpgME::KeyListMode::WithSecret);
 
@@ -60,13 +61,14 @@ namespace gpg_screens{
     while(true){
       GpgME::Key key = ctx->nextKey(err);
 
-      if(key.hasSecret()){
-        keys.push_back(key);
-      }
-
       if(err || key.isNull()){
         break;
       }
+
+      if(!(key.isExpired() && key.isRevoked() && key.isDisabled()) && key.hasSecret()){
+        keys.push_back(key);
+      }
+
     }
 
     ctx->endKeyListing();
@@ -188,8 +190,12 @@ namespace gpg_screens{
 
     while (true){
       GpgME::Key key = ctx->nextKey(err);
+
       if(err || key.isNull()) break;
-      keys.push_back(key);
+
+      if(!(key.isExpired() && key.isRevoked() && key.isDisabled())){
+        keys.push_back(key);
+      }
     }
 
     ctx->endKeyListing();

@@ -145,13 +145,14 @@ int main(int argc, char** argv){
   std::string fingerprint = "42EF08B93C21423CCBAE73DABE4A8FC973D91DD0";
   GpgME::Error err;
   GpgME::Key key = ctx->key(fingerprint.data(), err, false);
+  GpgME::Key key1 = ctx->key(fingerprint.data(), err, true);
 
   try{
   std::vector<GpgME::Key> keys = { key };
   std::string data = "Hello, from NinjaTech404 1234";
   std::string encrypted = gpg::encrypt(keys, data);
   std::string passphrase = "bmluamF0ZWNoNDA0";
-  std::cout << gpg::decrypt(encrypted, fingerprint, passphrase) << std::endl;
+  std::cout << gpg::decrypt(encrypted, key1, passphrase) << std::endl;
   }
 
   catch(std::runtime_error& err){
