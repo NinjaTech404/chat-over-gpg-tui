@@ -12,6 +12,7 @@
 #include <string>
 #include <cstring>
 #include <vector>
+#include <cstdlib>
 
 namespace gpg {
 
@@ -49,7 +50,7 @@ bool can_key_encrypt(const GpgME::Key& key) {
     }
 
     const char* fpr = key.primaryFingerprint();
-    std::string primaryFingerprint = std::string("\nPrimary Key Fingerprint: ") + (fpr ? fpr : "N/A");
+    std::string primaryFingerprint = std::string("\nPrimary Key Fingerprint: \n") + (fpr ? fpr : "N/A");
 
     if (key.isRevoked()) {
         throw std::runtime_error("[!] Key error\nPrimary key is revoked." + primaryFingerprint);
@@ -108,7 +109,7 @@ bool can_key_decrypt(const GpgME::Key& key) {
     }
 
     const char* fpr = key.primaryFingerprint();
-    std::string primaryFingerprint = std::string("\nPrimary Key Fingerprint: ") + (fpr ? fpr : "N/A");
+    std::string primaryFingerprint = std::string("\n\nPrimary Key Fingerprint: \n") + (fpr ? fpr : "N/A");
     
     if (key.isRevoked()) {
         throw std::runtime_error("[!] Key error\nPrimary key is revoked." + primaryFingerprint);
@@ -195,15 +196,15 @@ std::string encrypt (const std::vector<GpgME::Key>& keys, const std::string& dat
   }
 
   out.seek(0, SEEK_SET);
-  std::string plainText = out.toString();
+  std::string encrypted = out.toString();
 
-  if(plainText.empty()) throw std::runtime_error("[!] Invalid Encryption\nDecrypted output is empty or corrupted payload.");
+  if(encrypted.empty()) throw std::runtime_error("[!] Invalid Encryption\nDecrypted output is empty or corrupted payload.");
 
   return out.toString();
 
 }
 
-std::string decrypt (const std::string& data, const std::string& fingerprint, const std::string& passphrase){
+std::string decrypt (const std::string& data, GpgME::Key key, const std::string& passphrase){
 
   GpgME::initializeLibrary();
 
@@ -214,10 +215,8 @@ std::string decrypt (const std::string& data, const std::string& fingerprint, co
     throw std::runtime_error("[!] Runtime Error\nFaild to start the GpgME OpenPGP context.");
   }
 
-  GpgME::Error err;
-  GpgME::Key key = ctx->key(fingerprint.data(), err, true);
-  
-  if(err || key.isNull()) throw std::runtime_error(std::string("[!] Invalid Secret Key\nNo secret key found associated with fingerprint: ") + fingerprint);
+  std::string fingerprint = key.primaryFingerprint();
+  if(key.isNull()) throw std::runtime_error(std::string("[!] Invalid Secret Key\nNo secret key found associated with fingerprint: ") + fingerprint);
 
   if(data.empty()) throw std::runtime_error("[!] Invalid Data\nEmpty Message Data");
 
@@ -242,13 +241,27 @@ std::string decrypt (const std::string& data, const std::string& fingerprint, co
 
   out.seek(0, SEEK_SET);
   std::string plainText = out.toString();
-  
+                                      //
   if(plainText.empty()) throw std::runtime_error("[!] Invalid Decryption\nDecrypted output is empty or corrupted payload.");
+
+  bool isFlushed = std::system("gpgconf --reload gpg-agent && gpg-connect-agent reloadagent /bye");
 
   return plainText;
 }
 
-}
 
+bool is_passphrase_correct(std::shared_ptr<GpgME::Key> key, std::shared_ptr<std::string> passphrase) {
+  // Create an OpenPGP context
+  
+  std::string data = "test";
+  GpgME::Key testKey = *key;
+  std::vector<GpgME::Key> keys = {*key};
+  std::string encrypted = encrypt(keys, data);
+  std::string decrypted = decrypt(encrypted, testKey, *passphrase);
+
+
+  return true; // Passphrase is correct!
+}
+}
 #endif // !GPG_CONFIG_HPP
 
