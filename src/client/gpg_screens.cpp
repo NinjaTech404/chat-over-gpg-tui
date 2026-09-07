@@ -169,10 +169,10 @@ namespace gpg_screens{
 
     public:
       recipientMenu(std::shared_ptr<ScreenInteractive>);
+      std::shared_ptr<std::vector<GpgME::Key>> getRecipientsKeys(void) const;
       Element OnRender () override;
       bool OnEvent (Event) override;
       bool Focusable() const final;
-      std::shared_ptr<std::vector<GpgME::Key>> getRecipientsKeys(void) const;
   };
 
 
@@ -321,7 +321,7 @@ namespace gpg_screens{
     }
 
     if (e == Event::Character('u') || e == Event::Character('U')){
-      if(recipients.size() > 0 && keys.size() > 0 && selected >= 0 && selected < keys.size()){
+      if(recipients.size() <= keys.size() && recipients.size() > 0 && keys.size() > 0 && selected >= 0 && selected < keys.size()){
         
         std::string selectedKeyFP = keys[selected].primaryFingerprint();
 
@@ -376,7 +376,7 @@ namespace gpg_screens{
   }
   
   bool recipientMenu::isRecipientKeySelected (GpgME::Key key){
-    if(recipients.size() > 0 && keys.size() > 0 && selected >= 0 && selected < keys.size()){
+    if(recipients.size() <= keys.size() && recipients.size() > 0 && keys.size() > 0 && selected >= 0 && selected < keys.size()){
         
         std::string selectedKeyFP = key.primaryFingerprint();
 

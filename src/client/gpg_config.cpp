@@ -50,7 +50,7 @@ bool can_key_encrypt(const GpgME::Key& key) {
     }
 
     const char* fpr = key.primaryFingerprint();
-    std::string primaryFingerprint = std::string("\nPrimary Key Fingerprint: \n") + (fpr ? fpr : "N/A");
+    std::string primaryFingerprint = std::string("\n\nPrimary Key Fingerprint: \n") + (fpr ? fpr : "N/A");
 
     if (key.isRevoked()) {
         throw std::runtime_error("[!] Key error\nPrimary key is revoked." + primaryFingerprint);
@@ -141,7 +141,7 @@ bool can_key_decrypt(const GpgME::Key& key) {
     bool has_decrypt_capability = false;
 
     for (const GpgME::Subkey& subkey : key.subkeys()) {
-        if (subkey.canEncrypt()) {
+        if (subkey.isSecret() && subkey.canEncrypt()) {
             has_decrypt_capability = true;
             
             if (subkey.isRevoked()) {
@@ -227,7 +227,7 @@ std::string decrypt (const std::string& data, GpgME::Key key, const std::string&
     ctx->setPinentryMode(GpgME::Context::PinentryLoopback);
     ctx->setPassphraseProvider(passphrase_provider.get());
   }
-  else throw std::runtime_error(std::string("[!] Invalid Passphrase\nPassphrase of the secret key is required for decryption\nkey fingerprint: ") + fingerprint);
+  else throw std::runtime_error(std::string("[!] Invalid Passphrase\nPassphrase of the secret key is required for decryption\n\nkey fingerprint: \n") + fingerprint);
 
   GpgME::Data in(data.data(), data.size(), false);
   GpgME::Data out;

@@ -20,6 +20,7 @@ namespace screens {
     std::shared_ptr<std::function<void()>> handler;
     ButtonOption options;
     Component button;
+    Component container;
 
     public:
       ErrorMessage(std::shared_ptr<ScreenInteractive> screen, std::shared_ptr<std::string>, std::shared_ptr<std::function<void()>>);
@@ -41,7 +42,7 @@ namespace screens {
       return ele;
     };
 
-    button = Button("OK", *handler_, options);
+    button = Button("OK", [&]{ (*this->handler)(); }, options);
     Add(button);
   }
   Element ErrorMessage::OnRender(){
@@ -104,7 +105,7 @@ namespace screens {
       input_options.multiline = false;
 
       input_options.transform = [](const InputState& state){
-        Element ele = state.element;
+        Element ele = state.element | center;
         if(state.focused){ return ele; }
         return ele;
       };
@@ -151,7 +152,6 @@ namespace screens {
   }
 
   bool PassphrasePrompt::OnEvent(Event e) {
-    // Global shortcut to exit application
     if (e == Event::Escape) {
       screen->Exit();
       return true;
@@ -162,7 +162,6 @@ namespace screens {
       return true;
     }
 
-    // Delegate input navigation/events to the container
     return container->OnEvent(e);
   }
 

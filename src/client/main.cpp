@@ -221,8 +221,9 @@ int main(int argc, char **argv) {
 
     std::shared_ptr<screens::PassphrasePrompt> passphrasePrompt = std::make_shared<screens::PassphrasePrompt>(ui, passphrase, [&]{
       try{
-        gpg::is_passphrase_correct(clientAccount, passphrase);
-        currentScreen = static_cast<int>(Screens::RecipientMenu);
+        if(gpg::is_passphrase_correct(clientAccount, passphrase)){
+          currentScreen = static_cast<int>(Screens::RecipientMenu);
+        }
       } catch(const std::runtime_error& err){
         *error_message = err.what();
         *error_message_handler = [&]{
@@ -239,8 +240,9 @@ int main(int argc, char **argv) {
         try {
 
           clientAccount = login->getSelected();
-          gpg::can_key_decrypt(*clientAccount);
-          currentScreen = static_cast<int>(Screens::PassphrasePrompt);
+          if(gpg::can_key_decrypt(*clientAccount)){
+            currentScreen = static_cast<int>(Screens::PassphrasePrompt);
+          }
 
         }
         catch (const std::runtime_error& err) {
@@ -260,8 +262,28 @@ int main(int argc, char **argv) {
 
     Component recipientUIWrapper = CatchEvent(recipientUI, [&](Event e){
       if(e == Event::Return){
+
         recipientKeys = recipientUI->getRecipientsKeys();
-        if (recipientKeys->size() > 0) currentScreen = static_cast<int>(Screens::ClientScreen);
+
+        if(recipientKeys->size() > 0){
+
+          for(auto& key : *recipientKeys){
+            try{
+              if(gpg::can_key_encrypt(key)){
+                currentScreen = static_cast<int>(Screens::ClientScreen);
+              }
+            }
+            catch (const std::runtime_error& err){
+              *error_message = err.what();
+              *error_message_handler = [&]{
+                currentScreen = static_cast<int>(Screens::RecipientMenu);
+              };
+              currentScreen = static_cast<int>(Screens::ErrorMessage);
+            }
+          }
+
+        }
+
         return false;
       }
       return false;
