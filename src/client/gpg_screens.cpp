@@ -75,8 +75,13 @@ namespace gpg_screens{
 
   }
 
-  std::shared_ptr<GpgME::Key> login::getSelected(){ 
-    return std::make_shared<GpgME::Key>(this->keys.at(this->selected)); 
+  std::shared_ptr<GpgME::Key> login::getSelected(){
+
+    if (keys.size() > 0){
+      return std::make_shared<GpgME::Key>(this->keys[this->selected]);
+    }
+    return nullptr;
+
   }
 
   Element login::OnRender(){
@@ -358,7 +363,10 @@ namespace gpg_screens{
   bool recipientMenu::Focusable() const { return true; }
 
   std::shared_ptr<std::vector<GpgME::Key>> recipientMenu::getRecipientsKeys(void) const{
-    return std::make_shared<std::vector<GpgME::Key>>(recipients);
+    if(keys.size() > 0 && recipients.size() <= keys.size()){
+      return std::make_shared<std::vector<GpgME::Key>>(recipients);
+    }
+    return nullptr;
   }
 
   Element recipientMenu::getTrustLevel(GpgME::Key key) {

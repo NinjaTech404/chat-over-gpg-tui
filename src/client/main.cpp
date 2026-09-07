@@ -240,8 +240,10 @@ int main(int argc, char **argv) {
         try {
 
           clientAccount = login->getSelected();
-          if(gpg::can_key_decrypt(*clientAccount)){
-            currentScreen = static_cast<int>(Screens::PassphrasePrompt);
+          if(clientAccount){
+            if(gpg::can_key_decrypt(*clientAccount)){
+              currentScreen = static_cast<int>(Screens::PassphrasePrompt);
+            }
           }
 
         }
@@ -265,7 +267,7 @@ int main(int argc, char **argv) {
 
         recipientKeys = recipientUI->getRecipientsKeys();
 
-        if(recipientKeys->size() > 0){
+        if(recipientKeys && recipientKeys->size() > 0){
 
           for(auto& key : *recipientKeys){
             try{
