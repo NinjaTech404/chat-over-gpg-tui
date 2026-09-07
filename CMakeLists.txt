@@ -12,8 +12,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED OFF)
 set(CMAKE_CXX_EXTENSION OFF)
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
-include_directories(${CMAKE_SOURCE_DIR}/include/boost.Asio/include/)
-include_directories(${CMAKE_SOURCE_DIR}/include/boost_1_92_0)
+include_directories(${CMAKE_SOURCE_DIR}/include/asio) # asio-1.38.2
 include_directories(${CMAKE_SOURCE_DIR}/src)
 
 
