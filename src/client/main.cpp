@@ -1,189 +1,46 @@
 #include <client/main.hpp>
 using namespace ftxui;
-using tcp = boost::asio::ip::tcp;
-using boost::asio::io_context;
-using namespace boost;
 
 
-const char* description_sample = "Just a bunch of devs and sysadmins who love building stuff, breaking stuff, and learning from the chaos. We talk about cloud-native architecture, CI/CD pipelines, container orchestration, and the occasional existential crisis about microservices. All skill levels welcome – bring your curiosity and your favorite terminal emulator.";
+auto io = std::make_shared<asio::io_context>();
+auto sock = std::make_shared<tcp::socket>(*io);
 
 auto ui = std::make_shared<ScreenInteractive>(ScreenInteractive::Fullscreen());
-class Message {
-  private:
-    std::string ID;
-    std::string DATE;
-    std::string SENDER;
-    std::string CONTENT;
-    bool DELIVERED = false;
-  public:
-    Message(
-      std::string id,
-      std::string date,
-      std::string sender,
-      std::string content,
-      bool delivered = true
-    ) : ID(id),
-        DATE(date),
-        SENDER(sender),
-        CONTENT(content),
-        DELIVERED(delivered)
-    {};
 
-  ftxui::Element show(){
-    return vbox({
-      hbox({
-        text(" " + SENDER + " ") | color(Color::Cyan),
-        separatorLight(),
-        text(" " + ID + " ") | color(Color::Magenta),
-        separatorLight(),
-        filler() | flex,
-        separatorLight(),
-        text(" " + DATE + " ") | color(Color::Yellow),
-        separatorLight(),
-        text(DELIVERED? " Delivered " : " Failed ") | color(DELIVERED ? Color::Green : Color::Red)
-      }),
-      separatorLight(),
-      hbox({text(CONTENT) | color(Color::White)})
-    }) | borderRounded | color(Color::Blue);
-  }
+std::shared_ptr<GpgME::Key> clientAccount = std::make_shared<GpgME::Key>();
+std::shared_ptr<std::string> passphrase = std::make_shared<std::string>();
 
-  std::string getId(){
-    return this->ID;
-  }
-  std::string getDate(){
-    return this->DATE;
-  }
-  std::string getSender(){
-    return this->SENDER;
-  }
-  std::string getContent(){
-    return this->CONTENT;
-  }
-  bool isDelivered(){
-    return this->DELIVERED;
-  }
-};
+std::shared_ptr<Components> messages = std::make_shared<Components>();
 
-std::vector<Element> messages = {filler()};
+std::thread tcp_connection (const char* ip_address, const char* port){
+  tcp::endpoint ep (asio::ip::make_address(ip_address), std::stoi(port));
+  return std::thread([ep]{
+    client::connect(io, sock, ep, []{
+      client::read_loop(io, sock, [](std::string data){
 
-auto text_input (std::string& message, std::shared_ptr<io_context> io, std::shared_ptr<tcp::socket> socket){
-  auto input = Input(&message, "Type a message") | color(Color::Black) | bgcolor(Color::White);
-  return CatchEvent(input, [&message, io, socket](Event e){
-    if(e == Event::Return && message.size() != 0){
-      
-      asio::post(*io, [socket, msg = message]{
-        socket->async_write_some(asio::buffer(msg), [](system::error_code ec, std::size_t len){
-          ui->PostEvent(Event::Custom);
-        });
-      });
-
-      messages.push_back(
-        Message(
-          std::string("EC7F 9A8B C3ED 0477 FDA2  D2D8 F61B F7B3 1B5B 7B6D"),
-          std::string("2026-08-21"),
-          std::string("KADHIM SHAKIR KADHIM"),
-          message
-        ).show()
-      );
-      message.clear();
-      return true;
-    }
-    return false;
-  });
-}
-
-
-auto chat_screen (){
-    return Scroller(
-      Renderer([&]{
-          return vbox(messages);
-        }
-      )
-  );
-}
-
-
-
-
-std::thread tcp_connection(std::shared_ptr<io_context> io, std::shared_ptr<tcp::socket> socket, tcp::endpoint endpoint){
-  return std::thread([io, socket, endpoint]{
-    auto data = std::make_shared<std::string>();
-    socket->async_connect(endpoint, [io, socket, endpoint, data](system::error_code ec){
-      
-
-      asio::post(*io,[socket]{
-          nlohmann::json j = nlohmann::json({
-            {"name", "KADHIM SHAKIR KADHIM"},
-            {"id", "EC7F 9A8B C3ED 0477 FDA2  D2D8 F61B F7B3 1B5B 7B6D"}
-          });
-        socket->async_write_some(asio::buffer(j.dump().data(), 512), [](system::error_code ec, std::size_t le){});
-      });
-
-      auto read_loop = std::make_shared<std::function<void()>>();
-      *read_loop = [io, socket, read_loop]{
-
-        auto data = std::make_shared<std::string>(1024,'\0');
-        socket->async_read_some(
-          asio::buffer(*data),
-          [io, socket, data, read_loop](system::error_code ec, std::size_t len){
-            
-            if (!ec && len > 0) {
-              data->resize(len);
-
-              char text[len + 1] = {};
-              for(int i = 0; i < len; i++){
-                text[i] = (*data)[i];
-              }
-              text[len] = '\0';
-
-              messages.push_back(
-                Message(
-                  std::string("EC7F 9A8B C3ED 0477 FDA2  D2D8 F61B F7B3 1B5B 7B6D"),
-                  std::string("2026-08-21"),
-                  std::string("KADHIM SHAKIR KADHIM"),
-                  std::string(text)
-                ).show()
-              );
-              data->resize(1024);
-
-              ui->PostEvent(Event::Custom);
-            }
-          
-
-            if(socket->is_open() && !ec){
-              asio::post(*io,*read_loop);
-            }
-
-          }
+        try{
+          json json_data = client::receive_data(data, clientAccount, passphrase);
+          Component message = std::make_shared<screens::Message>(
+          json_data["name"].get<std::string>(),
+          json_data["fingerprint"].get<std::string>(),
+          json_data["date"].get<std::string>(),
+          json_data["status"].get<int>(),
+          json_data["data"].get<std::string>()
         );
-      
-      };
 
-      asio::post(*io,*read_loop);
+        messages->push_back(message);
 
+        ui->PostEvent(Event::Custom);
+
+        }
+        catch(const std::runtime_error& err){}
+
+        Component message = std::make_shared<screens::Message>("test", "test", "test", 200, data);
+        messages->push_back(message);
+
+      });
     });
     io->run();
-  });
-}
-
-
-
-auto client_screen(std::shared_ptr<io_context> io, std::shared_ptr<tcp::socket> socket){
-  static std::string message;
-  static auto message_input = text_input(message, io, socket);
-  static auto chat = chat_screen();
-  static auto container = Container::Vertical({chat, message_input});
-  
-  return Renderer(container, [&]{
-      return vbox({
-          hbox(text("The Cosmic Group") | flex, separatorDouble(), text("Menu") ),
-          separatorDouble(),
-          hbox({
-            chat->Render() | flex,
-          }) | flex,
-          separatorDouble(),
-          message_input->Render()
-      }) | borderDouble;
   });
 }
 
@@ -194,28 +51,20 @@ int main(int argc, char **argv) {
         std::cerr << "Usage: " << argv[0] << " <ip> <port>\n";
         return 1;
     }
-  
-    auto io = std::make_shared<io_context>();
-    auto socket = std::make_shared<tcp::socket>(*io);
-    auto endpoint = tcp::endpoint(asio::ip::make_address(argv[1]), std::stoi(argv[2]));
 
-
-    // auto work = make_work_guard(*io);
-    // auto chat_connection =  tcp_connection(io, socket, endpoint);
+    std::thread connect_to_server = tcp_connection(argv[1], argv[2]);
       
     int currentScreen = static_cast<int>(Screens::Login);
 
-    std::shared_ptr<GpgME::Key> clientAccount = std::make_shared<GpgME::Key>();
     std::shared_ptr<std::vector<GpgME::Key>> recipientKeys =  std::make_shared<std::vector<GpgME::Key>>();
   
 
     std::shared_ptr<std::function<void()>> error_message_handler = std::make_shared<std::function<void()>>();
     std::shared_ptr<std::string> error_message = std::make_shared<std::string>();
-    std::shared_ptr<std::string> passphrase = std::make_shared<std::string>();
 
     std::shared_ptr<gpg_screens::login> login = std::make_shared<gpg_screens::login>(ui);
     std::shared_ptr<gpg_screens::recipientMenu> recipientUI = std::make_shared<gpg_screens::recipientMenu>(ui);
-    std::shared_ptr<screens::clientChatScreen> clientChat = std::make_shared<screens::clientChatScreen>(ui);
+    std::shared_ptr<screens::clientChatScreen> clientChat = std::make_shared<screens::clientChatScreen>(io, sock, ui, messages, clientAccount, recipientKeys);
     std::shared_ptr<screens::ErrorMessage> errorUI = std::make_shared<screens::ErrorMessage>(ui, error_message, error_message_handler);
 
 
@@ -239,7 +88,7 @@ int main(int argc, char **argv) {
        
         try {
 
-          clientAccount = login->getSelected();
+          *clientAccount = *login->getSelected();
           if(clientAccount){
             if(gpg::can_key_decrypt(*clientAccount)){
               currentScreen = static_cast<int>(Screens::PassphrasePrompt);
@@ -265,8 +114,7 @@ int main(int argc, char **argv) {
     Component recipientUIWrapper = CatchEvent(recipientUI, [&](Event e){
       if(e == Event::Return){
 
-        recipientKeys = recipientUI->getRecipientsKeys();
-
+        *recipientKeys = *recipientUI->getRecipientsKeys();
         if(recipientKeys && recipientKeys->size() > 0){
 
           for(auto& key : *recipientKeys){
@@ -274,6 +122,7 @@ int main(int argc, char **argv) {
               if(gpg::can_key_encrypt(key)){
                 currentScreen = static_cast<int>(Screens::ClientScreen);
               }
+
             }
             catch (const std::runtime_error& err){
               *error_message = err.what();
@@ -283,6 +132,7 @@ int main(int argc, char **argv) {
               currentScreen = static_cast<int>(Screens::ErrorMessage);
             }
           }
+          
 
         }
 
@@ -298,7 +148,6 @@ int main(int argc, char **argv) {
 
 
     ui->Loop(tab_container);
-
-    // chat_connection.join();
+    connect_to_server.join();
     return 0;
 }

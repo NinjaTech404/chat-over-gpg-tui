@@ -17,18 +17,13 @@
 #include <client/gpg_screens.cpp>
 #include <client/gpg_config.cpp>
 #include <client/message_screens.cpp>
+#include <client/client_config.cpp>
 
 #include <nlohmann/json.hpp>
 
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
-
-#include <boost/asio/ip/tcp.hpp>
-#include <boost/asio/write.hpp>
-#include <boost/asio/read.hpp>
-#include <boost/asio/io_context.hpp>
-#include <boost/system.hpp>
 
 
 #endif

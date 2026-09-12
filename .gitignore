@@ -1,10 +1,4 @@
 build
-include/boost.Asio/*
-include/boost.Asio/.gitkeep
-include/boost_1_92_0/*
-include/boost_1_92_0/.gitkeep
-include/nlohmann/*
-include/nlohmann/.gitkeep
 lib/ftxui/*
 lib/ftxui/.gitkeep
 .log.sha256

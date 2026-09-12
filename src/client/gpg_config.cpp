@@ -200,7 +200,7 @@ std::string encrypt (const std::vector<GpgME::Key>& keys, const std::string& dat
 
   if(encrypted.empty()) throw std::runtime_error("[!] Invalid Encryption\nDecrypted output is empty or corrupted payload.");
 
-  return out.toString();
+  return encrypted;
 
 }
 
