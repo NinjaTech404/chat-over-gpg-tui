@@ -11,16 +11,22 @@
 #include <gpgme++/engineinfo.h>
 #include <gpgme++/keylistresult.h>
 
+#include <nlohmann/json.hpp>
+
 #include <string>
 #include <cstring>
 #include <vector>
 #include <memory>
 #include <cstddef>
+#include <initializer_list>
+
+#include <client/client_config.cpp>
 
 namespace screens {
   /* >=====> Customized Button <=====< */
 
   using namespace ftxui;
+  using namespace nlohmann;
 
   class customButton : public ComponentBase{
     std::shared_ptr<std::string> LABEL;
@@ -58,27 +64,36 @@ namespace screens {
   /* >=====> The Message Component <=====< */
 
   class Message : public ComponentBase {
+    std::string NAME;
+    std::string FINGERPRINT;
+    std::string DATE;
+    int STATUS;
+    std::string DATA;
     public:
+      Message(std::string, std::string, std::string, int, std::string);
       Element OnRender() override;
       bool OnEvent(Event) override;
       bool Focusable() const final;
   };
 
+  Message::Message(std::string name, std::string fingerprint, std::string date, int status, std::string data) 
+    : NAME(name), FINGERPRINT(fingerprint), DATE(date), STATUS(status), DATA(data){}
+
   Element Message::OnRender(){
     return vbox({
       hbox({
-        text(" client name ") | color(Color::Cyan),
+        text(this->NAME) | color(Color::Cyan),
         separatorHeavy(),
-        text(" 42EF08B93C21423CCBAE73DABE4A8FC973D91DD0 ") | color(Color::Blue),
+        text(this->FINGERPRINT) | color(Color::Blue),
         separatorHeavy(),
         filler(),
         separatorHeavy(),
-        text(" 2026-09-04 05:43 ") | color(Color::Yellow),
+        text(this->DATE) | color(Color::Yellow),
         separatorHeavy(),
-        text(" Delivered ") | color(Color::Cyan)
+        text(this->STATUS == 200? "Deliverd" : "Failed") | color(Color::Cyan)
       }),
       separatorHeavy(),
-      text(" Message Body: \n - One \n - Two \n - Three ") | color(Color::White)
+      text(this->DATA) | color(Color::White)
     }) | borderHeavy | color(Color::Green);
   }
 
@@ -88,18 +103,71 @@ namespace screens {
 
   bool Message::Focusable() const { return true; }
 
-  /* >=====> Select Client Chat Screen UI <=====< */
+  /* >=====> Chat Screen UI <=====< */
+
+  class chatScreen : public ComponentBase {
+
+    Components messages;
+    Component scroller;
+    Component container;
+
+    public:
+      chatScreen(Components);
+      void update(Components);
+      Element OnRender() override;
+      bool OnEvent(Event) override;
+      bool Focusable() const final;
+  };
+
+  chatScreen::chatScreen(Components messages_) : messages(messages_){
+    container = Container::Vertical(messages);
+    scroller = Scroller(container);
+    Add(scroller);
+  }
+
+  void chatScreen::update(Components messages_){
+    container->DetachAllChildren();
+
+    for(auto& message : messages_) {
+      container->Add(message);
+    }
+
+  }
+
+  Element chatScreen::OnRender(){
+
+    return vbox({
+      scroller->Render()
+    });
+  }
+
+  bool chatScreen::OnEvent(Event e) {
+    return scroller->OnEvent(e);
+  }
+
+  bool chatScreen::Focusable() const { return true; }
+
+  /* >=====> Client Chat Screen UI <=====< */
 
   class clientChatScreen : public ComponentBase{
 
     std::string INPUT_TEXT;
     std::shared_ptr<ScreenInteractive> screen;
 
+    std::shared_ptr<GpgME::Key> clientAccount;
+    std::shared_ptr<std::vector<GpgME::Key>> recipients;
+
+    std::shared_ptr<asio::io_context> io;
+    std::shared_ptr<tcp::socket> sock;
+
     std::shared_ptr<std::string> buttonLabel = std::make_shared<std::string>(" Menu ");
     std::shared_ptr<bool> toggleMenu = std::make_shared<bool>(true);
     std::shared_ptr<customButton> menuButton = std::make_shared<customButton>(toggleMenu, buttonLabel);
 
-    std::shared_ptr<Message> message = std::make_shared<Message>();
+    json json_data;
+    std::shared_ptr<Components> messages;
+    std::shared_ptr<chatScreen> chat;
+    
 
     InputOption option;
     Component input_;
@@ -107,13 +175,19 @@ namespace screens {
     Component container_;
 
     public:
-      clientChatScreen(std::shared_ptr<ScreenInteractive>);
+      clientChatScreen(std::shared_ptr<asio::io_context>, std::shared_ptr<tcp::socket>, std::shared_ptr<ScreenInteractive>, std::shared_ptr<Components>, const std::shared_ptr<GpgME::Key>& , const std::shared_ptr<std::vector<GpgME::Key>>&);
       Element OnRender() override;
       bool OnEvent(Event) override;
       bool Focusable() const final;
   };
 
-  clientChatScreen::clientChatScreen(std::shared_ptr<ScreenInteractive> screen_) : screen(screen_) {
+  clientChatScreen::clientChatScreen(
+      std::shared_ptr<asio::io_context> io_,
+      std::shared_ptr<tcp::socket> sock_,
+      std::shared_ptr<ScreenInteractive> screen_, 
+      std::shared_ptr<Components> messages_,
+      const std::shared_ptr<GpgME::Key>& clientAccount_,
+      const std::shared_ptr<std::vector<GpgME::Key>>& recipients_) : io(io_), sock(sock_), screen(screen_), messages(messages_), clientAccount(clientAccount_), recipients(recipients_) {
 
 
     option.transform = [](InputState state){
@@ -127,11 +201,48 @@ namespace screens {
       return ele;
     };
 
+
     input_ = Input(&INPUT_TEXT, "Type a message", option);
     inputWrapper = CatchEvent(input_, [&](Event e){
+      if(e == Event::Return){
+        if(recipients->size() > 0 && !this->INPUT_TEXT.empty()){
+          json_data["name"] = clientAccount->userID(0).name();
+          json_data["fingerprint"] = clientAccount->primaryFingerprint();
+          json_data["date"] = "2026-09-12";
+          json_data["status"] = 200;
+          json_data["data"] = this->INPUT_TEXT;
+        
+
+          Component message = std::make_shared<Message>(
+            json_data["name"].get<std::string>(),
+            json_data["fingerprint"].get<std::string>(),
+            json_data["date"].get<std::string>(),
+            json_data["status"].get<int>(),
+            json_data["data"].get<std::string>()
+          );
+
+          this->messages->push_back(message);
+
+          //std::string encrypted = client::send_data(recipients, json_data);
+
+
+        asio::post(*io, [data = this->INPUT_TEXT, this]() mutable {
+          data.push_back('\0');
+          asio::async_write(*sock, asio::buffer(data.data(), data.size()), [this](auto, auto){ });
+          screen->PostEvent(Event::Custom);
+        });
+
+          this->INPUT_TEXT.clear();
+        }
+        this->INPUT_TEXT.clear();
+        return true;
+      }
       return false;
     });
-    container_ = Container::Vertical({inputWrapper, menuButton, message});
+
+    chat = std::make_shared<chatScreen>(*messages);
+
+    container_ = Container::Vertical({inputWrapper, menuButton, chat});
 
     Add(container_);
   }
@@ -199,12 +310,24 @@ namespace screens {
       paragraphAlignCenter(" No messages yet? Wait until someone sends a message \n or you can send the first message so others can see it. ")
     }) | borderHeavy | center | color(Color::Yellow);
 
-    Element chatMessages = vbox({
-      // filler(),
-      // defaultChatMessage,
-      filler(),
-      message->Render()
-    }) | flex;
+    Element chatMessages = [&]{
+      
+      if(messages->size() > 0){
+        chat->update(*messages);
+        return vbox({
+          filler(),
+          chat->Render() | color(Color::White)
+        }) | flex;
+      }
+      else{
+        return vbox({
+          filler(),
+          defaultChatMessage,
+          filler(),
+        }) | flex;
+      }
+
+    }();
 
     Element messageInput = vbox({
       hbox({
@@ -228,7 +351,11 @@ namespace screens {
   
   bool clientChatScreen::OnEvent(Event e){
     if(e == Event::Escape){
+      sock->shutdown(tcp::socket::shutdown_both);
+      sock->close();
+      io->stop();
       screen->Exit();
+      if(recipients){ std::cout << recipients->size() << std::endl;}
       return true;
     }
     return container_->OnEvent(e);
