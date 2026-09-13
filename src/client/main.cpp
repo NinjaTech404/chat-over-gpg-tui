@@ -19,32 +19,33 @@ std::thread tcp_connection (const char* ip_address, const char* port){
       client::read_loop(io, sock, [](std::string data){
 
         try{
+
           json json_data = client::receive_data(data, clientAccount, passphrase);
           Component message = std::make_shared<screens::Message>(
-          json_data["name"].get<std::string>(),
-          json_data["fingerprint"].get<std::string>(),
-          json_data["date"].get<std::string>(),
-          json_data["status"].get<int>(),
-          json_data["data"].get<std::string>()
-        );
+            json_data["name"].get<std::string>(),
+            json_data["fingerprint"].get<std::string>(),
+            json_data["date"].get<std::string>(),
+            json_data["status"].get<int>(),
+            json_data["data"].get<std::string>()
+          );
 
-        messages->push_back(message);
+          messages->push_back(message);
 
-        ui->PostEvent(Event::Custom);
+          ui->PostEvent(Event::Custom);
 
         }
-        catch(const std::runtime_error& err){}
+        catch(const std::runtime_error& err){
+          Component message = std::make_shared<screens::ChatMessageError>(err.what());
+          messages->push_back(message);
+          ui->PostEvent(Event::Custom);
+        }
 
-        Component message = std::make_shared<screens::Message>("test", "test", "test", 200, data);
-        messages->push_back(message);
 
       });
     });
     io->run();
   });
 }
-
-enum class Screens : char { Login = 0, RecipientMenu = 1, ClientScreen = 2, PassphrasePrompt = 3, ErrorMessage = 4};
 
 int main(int argc, char **argv) {
     if (argc < 3) {
@@ -61,14 +62,14 @@ int main(int argc, char **argv) {
 
     std::shared_ptr<std::function<void()>> error_message_handler = std::make_shared<std::function<void()>>();
     std::shared_ptr<std::string> error_message = std::make_shared<std::string>();
+    std::shared_ptr<screens::ErrorMessage> errorUI = std::make_shared<screens::ErrorMessage>(io, sock, ui, error_message, error_message_handler);
 
-    std::shared_ptr<gpg_screens::login> login = std::make_shared<gpg_screens::login>(ui);
-    std::shared_ptr<gpg_screens::recipientMenu> recipientUI = std::make_shared<gpg_screens::recipientMenu>(ui);
-    std::shared_ptr<screens::clientChatScreen> clientChat = std::make_shared<screens::clientChatScreen>(io, sock, ui, messages, clientAccount, recipientKeys);
-    std::shared_ptr<screens::ErrorMessage> errorUI = std::make_shared<screens::ErrorMessage>(ui, error_message, error_message_handler);
+    std::shared_ptr<gpg_screens::login> login = std::make_shared<gpg_screens::login>(io, sock, ui);
+    std::shared_ptr<gpg_screens::recipientMenu> recipientUI = std::make_shared<gpg_screens::recipientMenu>(io, sock, ui);
+    std::shared_ptr<screens::clientChatScreen> clientChat = std::make_shared<screens::clientChatScreen>(io, sock, ui, messages, clientAccount, recipientKeys, currentScreen, error_message, error_message_handler);
 
 
-    std::shared_ptr<screens::PassphrasePrompt> passphrasePrompt = std::make_shared<screens::PassphrasePrompt>(ui, passphrase, [&]{
+    std::shared_ptr<screens::PassphrasePrompt> passphrasePrompt = std::make_shared<screens::PassphrasePrompt>(io, sock, ui, passphrase, [&]{
       try{
         if(gpg::is_passphrase_correct(clientAccount, passphrase)){
           currentScreen = static_cast<int>(Screens::RecipientMenu);
@@ -88,8 +89,8 @@ int main(int argc, char **argv) {
        
         try {
 
-          *clientAccount = *login->getSelected();
-          if(clientAccount){
+          *clientAccount = login->getSelected();
+          if(!clientAccount->isNull()){
             if(gpg::can_key_decrypt(*clientAccount)){
               currentScreen = static_cast<int>(Screens::PassphrasePrompt);
             }
@@ -114,8 +115,8 @@ int main(int argc, char **argv) {
     Component recipientUIWrapper = CatchEvent(recipientUI, [&](Event e){
       if(e == Event::Return){
 
-        *recipientKeys = *recipientUI->getRecipientsKeys();
-        if(recipientKeys && recipientKeys->size() > 0){
+        *recipientKeys = recipientUI->getRecipientsKeys();
+        if(recipientKeys->size() > 0){
 
           for(auto& key : *recipientKeys){
             try{

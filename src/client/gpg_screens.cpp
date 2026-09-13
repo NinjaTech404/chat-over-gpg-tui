@@ -11,6 +11,9 @@
 #include <gpgme++/engineinfo.h>
 #include <gpgme++/keylistresult.h>
 
+#include <asio/io_context.hpp>
+#include <asio/ip/tcp.hpp>
+
 #include <string>
 #include <cstring>
 #include <vector>
@@ -20,7 +23,7 @@
 namespace gpg_screens{
 
   using namespace ftxui;
-
+  using tcp = asio::ip::tcp;
 
   /* >=====> Login UI <=====< */
   class login : public ComponentBase{
@@ -36,18 +39,20 @@ namespace gpg_screens{
     int selected = 0;
     
     std::shared_ptr<ScreenInteractive> screen;
+    std::shared_ptr<asio::io_context> io;
+    std::shared_ptr<tcp::socket> sock;
    
     
     public:
-      login(std::shared_ptr<ScreenInteractive> screen_);
-      std::shared_ptr<GpgME::Key> getSelected();
+      login(std::shared_ptr<asio::io_context>, std::shared_ptr<tcp::socket>, std::shared_ptr<ScreenInteractive>);
+      GpgME::Key getSelected();
       Element OnRender() override;
       bool OnEvent(Event e) override;
       bool Focusable() const final;
 
   };
 
-  login::login(std::shared_ptr<ScreenInteractive> screen_) : screen(screen_){
+  login::login(std::shared_ptr<asio::io_context> io_, std::shared_ptr<tcp::socket> sock_, std::shared_ptr<ScreenInteractive> screen_) : io(io_), sock(sock_), screen(screen_){
 
     GpgME::initializeLibrary();
     std::unique_ptr<GpgME::Context> ctx = GpgME::Context::create(GpgME::OpenPGP);
@@ -75,12 +80,12 @@ namespace gpg_screens{
 
   }
 
-  std::shared_ptr<GpgME::Key> login::getSelected(){
+  GpgME::Key login::getSelected(){
 
     if (keys.size() > 0){
-      return std::make_shared<GpgME::Key>(this->keys[this->selected]);
+      return this->keys[this->selected];
     }
-    return nullptr;
+    return GpgME::Key();
 
   }
 
@@ -141,6 +146,9 @@ namespace gpg_screens{
     }
 
     if (e == Event::Escape || e == Event::Character('q') || e == Event::Character('Q')){
+      sock->shutdown(tcp::socket::shutdown_both);
+      sock->close();
+      io->stop();
       screen->Exit();
       return true;
     }
@@ -161,7 +169,10 @@ namespace gpg_screens{
                          " Press ENTER to confirm or ESC/Q to quit. ";
 
     std::shared_ptr<ScreenInteractive> screen;
-    std::shared_ptr<GpgME::Key> clientKey;
+    std::shared_ptr<asio::io_context> io;
+    std::shared_ptr<tcp::socket> sock;
+
+    std::shared_ptr<GpgME::Key> clientKey; // not used at all
 
     std::vector<GpgME::Key> keys;
     std::vector<GpgME::Key> recipients;
@@ -173,15 +184,15 @@ namespace gpg_screens{
     bool isRecipientKeySelected (GpgME::Key);
 
     public:
-      recipientMenu(std::shared_ptr<ScreenInteractive>);
-      std::shared_ptr<std::vector<GpgME::Key>> getRecipientsKeys(void) const;
+      recipientMenu(std::shared_ptr<asio::io_context>, std::shared_ptr<tcp::socket>, std::shared_ptr<ScreenInteractive>);
+      std::vector<GpgME::Key> getRecipientsKeys(void) const;
       Element OnRender () override;
       bool OnEvent (Event) override;
       bool Focusable() const final;
   };
 
 
-  recipientMenu::recipientMenu(std::shared_ptr<ScreenInteractive> screen_) : screen(screen_) {
+  recipientMenu::recipientMenu(std::shared_ptr<asio::io_context> io_, std::shared_ptr<tcp::socket> sock_, std::shared_ptr<ScreenInteractive> screen_) : io(io_), sock(sock_), screen(screen_) {
 
     GpgME::initializeLibrary();
 
@@ -303,6 +314,9 @@ namespace gpg_screens{
     }
 
     if (e == Event::Escape || e == Event::Character('q') || e == Event::Character('Q')){
+      sock->shutdown(tcp::socket::shutdown_both);
+      sock->close();
+      io->stop();
       screen->Exit();
       return true;
     }
@@ -362,11 +376,11 @@ namespace gpg_screens{
 
   bool recipientMenu::Focusable() const { return true; }
 
-  std::shared_ptr<std::vector<GpgME::Key>> recipientMenu::getRecipientsKeys(void) const{
+  std::vector<GpgME::Key> recipientMenu::getRecipientsKeys(void) const{
     if(keys.size() > 0 && recipients.size() <= keys.size()){
-      return std::make_shared<std::vector<GpgME::Key>>(recipients);
+      return recipients;
     }
-    return nullptr;
+    return std::vector<GpgME::Key>();
   }
 
   Element recipientMenu::getTrustLevel(GpgME::Key key) {

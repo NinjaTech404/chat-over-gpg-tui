@@ -6,30 +6,39 @@
 #include <ftxui/component/component.hpp>
 #include <ftxui/dom/elements.hpp>
 
+#include <asio/io_context.hpp>
+#include <asio/ip/tcp.hpp>
+
 #include <functional>
 
 namespace screens {
   
   using namespace ftxui;
+  using tcp = asio::ip::tcp;
 
   /* >=====> ErrorMessage <=====< */
   class ErrorMessage : public ComponentBase{
 
     std::shared_ptr<std::string> ERROR;
+    
+    std::shared_ptr<asio::io_context> io;
+    std::shared_ptr<tcp::socket> sock;
+
     std::shared_ptr<ScreenInteractive> screen;
+
     std::shared_ptr<std::function<void()>> handler;
     ButtonOption options;
     Component button;
     Component container;
 
     public:
-      ErrorMessage(std::shared_ptr<ScreenInteractive> screen, std::shared_ptr<std::string>, std::shared_ptr<std::function<void()>>);
+      ErrorMessage(std::shared_ptr<asio::io_context>, std::shared_ptr<tcp::socket>, std::shared_ptr<ScreenInteractive>, std::shared_ptr<std::string>, std::shared_ptr<std::function<void()>>);
       Element OnRender() override;
       bool OnEvent(Event) override;
       bool Focusable() const final;
   };
 
-  ErrorMessage::ErrorMessage(std::shared_ptr<ScreenInteractive> screen_, std::shared_ptr<std::string> error_, std::shared_ptr<std::function<void()>> handler_) : screen(screen_), ERROR(error_), handler(handler_) {
+  ErrorMessage::ErrorMessage(std::shared_ptr<asio::io_context> io_, std::shared_ptr<tcp::socket> sock_, std::shared_ptr<ScreenInteractive> screen_, std::shared_ptr<std::string> error_, std::shared_ptr<std::function<void()>> handler_) : io(io_), sock(sock_), screen(screen_), ERROR(error_), handler(handler_) {
     options = ButtonOption::Simple();
     
     options.transform = [](const EntryState& state){
@@ -62,6 +71,9 @@ namespace screens {
   bool ErrorMessage::OnEvent(Event e){
 
     if(e == Event::Escape || e == Event::Character('Q') || e == Event::Character('q')){
+      sock->shutdown(tcp::socket::shutdown_both);
+      sock->close();
+      io->stop();
       screen->Exit();
       return true;
     }
@@ -80,7 +92,11 @@ namespace screens {
   /* >=====> PassPhrase Prompt <====< */
   
   class PassphrasePrompt : public ComponentBase {
+
+    std::shared_ptr<asio::io_context> io;
+    std::shared_ptr<tcp::socket> sock;
     std::shared_ptr<ScreenInteractive> screen;
+
     std::shared_ptr<std::string> passphrase;
     std::function<void()> onSubmit;
 
@@ -92,13 +108,13 @@ namespace screens {
     InputOption input_options;
 
     public:
-      PassphrasePrompt(std::shared_ptr<ScreenInteractive>, std::shared_ptr<std::string>, std::function<void()>);
+      PassphrasePrompt(std::shared_ptr<asio::io_context>, std::shared_ptr<tcp::socket>, std::shared_ptr<ScreenInteractive>, std::shared_ptr<std::string>, std::function<void()>);
       Element OnRender() override;
       bool OnEvent(Event) override;
       bool Focusable() const final;
   };
 
-  PassphrasePrompt::PassphrasePrompt(std::shared_ptr<ScreenInteractive> screen_, std::shared_ptr<std::string> passphrase_out_, std::function<void()> onSubmit_) : screen(screen_), passphrase(passphrase_out_), onSubmit(onSubmit_) {
+  PassphrasePrompt::PassphrasePrompt(std::shared_ptr<asio::io_context> io_, std::shared_ptr<tcp::socket>sock_, std::shared_ptr<ScreenInteractive> screen_, std::shared_ptr<std::string> passphrase_out_, std::function<void()> onSubmit_) : io(io_), sock(sock_), screen(screen_), passphrase(passphrase_out_), onSubmit(onSubmit_) {
 
       // Configure Password Input options (Masking with *)
       input_options.password = true;
@@ -153,6 +169,9 @@ namespace screens {
 
   bool PassphrasePrompt::OnEvent(Event e) {
     if (e == Event::Escape) {
+      sock->shutdown(tcp::socket::shutdown_both);
+      sock->close();
+      io->stop();
       screen->Exit();
       return true;
     }
@@ -167,6 +186,34 @@ namespace screens {
 
    bool PassphrasePrompt::Focusable() const { return true; }
 
+  /* >=====> The Error Chat Message Component <=====< */
+
+  class ChatMessageError : public ComponentBase {
+    std::string DETAILS;
+    public:
+      ChatMessageError(std::string);
+      Element OnRender() override;
+      bool OnEvent(Event) override;
+      bool Focusable() const final;
+  };
+
+  ChatMessageError::ChatMessageError(std::string details) : DETAILS(details) {}
+
+  Element ChatMessageError::OnRender(){
+    return vbox({
+      hbox({
+        text(" -- [!] Chat Message Error -- ") | center | color(Color::Yellow),
+      }) | center,
+      separatorHeavy(),
+      paragraphAlignCenter(this->DETAILS) | color(Color::Red)
+    }) | borderHeavy | color(Color::Magenta);
+  }
+
+  bool ChatMessageError::OnEvent(Event e) {
+    return false;
+  }
+
+  bool ChatMessageError::Focusable() const { return true; }
 
 }
 

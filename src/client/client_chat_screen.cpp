@@ -19,6 +19,9 @@
 #include <memory>
 #include <cstddef>
 #include <initializer_list>
+#include <functional>
+
+enum class Screens : char { Login = 0, RecipientMenu = 1, ClientScreen = 2, PassphrasePrompt = 3, ErrorMessage = 4};
 
 #include <client/client_config.cpp>
 
@@ -93,7 +96,7 @@ namespace screens {
         text(this->STATUS == 200? "Deliverd" : "Failed") | color(Color::Cyan)
       }),
       separatorHeavy(),
-      text(this->DATA) | color(Color::White)
+      paragraph(this->DATA) | color(Color::White)
     }) | borderHeavy | color(Color::Green);
   }
 
@@ -152,14 +155,19 @@ namespace screens {
   class clientChatScreen : public ComponentBase{
 
     std::string INPUT_TEXT;
+    std::shared_ptr<asio::io_context> io;
+    std::shared_ptr<tcp::socket> sock;
     std::shared_ptr<ScreenInteractive> screen;
+
+    int currentScreen;
+    std::shared_ptr<std::string> error_message_content;
+    std::shared_ptr<std::function<void()>> error_message_handler;
+
 
     std::shared_ptr<GpgME::Key> clientAccount;
     std::shared_ptr<std::vector<GpgME::Key>> recipients;
 
-    std::shared_ptr<asio::io_context> io;
-    std::shared_ptr<tcp::socket> sock;
-
+    
     std::shared_ptr<std::string> buttonLabel = std::make_shared<std::string>(" Menu ");
     std::shared_ptr<bool> toggleMenu = std::make_shared<bool>(true);
     std::shared_ptr<customButton> menuButton = std::make_shared<customButton>(toggleMenu, buttonLabel);
@@ -175,7 +183,16 @@ namespace screens {
     Component container_;
 
     public:
-      clientChatScreen(std::shared_ptr<asio::io_context>, std::shared_ptr<tcp::socket>, std::shared_ptr<ScreenInteractive>, std::shared_ptr<Components>, const std::shared_ptr<GpgME::Key>& , const std::shared_ptr<std::vector<GpgME::Key>>&);
+      clientChatScreen(
+          std::shared_ptr<asio::io_context>, 
+          std::shared_ptr<tcp::socket>, 
+          std::shared_ptr<ScreenInteractive>, 
+          std::shared_ptr<Components>, 
+          const std::shared_ptr<GpgME::Key>&, 
+          const std::shared_ptr<std::vector<GpgME::Key>>&, 
+          int&, 
+          const std::shared_ptr<std::string>&, 
+          const std::shared_ptr<std::function<void()>>&);
       Element OnRender() override;
       bool OnEvent(Event) override;
       bool Focusable() const final;
@@ -184,10 +201,13 @@ namespace screens {
   clientChatScreen::clientChatScreen(
       std::shared_ptr<asio::io_context> io_,
       std::shared_ptr<tcp::socket> sock_,
-      std::shared_ptr<ScreenInteractive> screen_, 
+      std::shared_ptr<ScreenInteractive> screen_,
       std::shared_ptr<Components> messages_,
       const std::shared_ptr<GpgME::Key>& clientAccount_,
-      const std::shared_ptr<std::vector<GpgME::Key>>& recipients_) : io(io_), sock(sock_), screen(screen_), messages(messages_), clientAccount(clientAccount_), recipients(recipients_) {
+      const std::shared_ptr<std::vector<GpgME::Key>>& recipients_,
+      int& currentScreen_,
+      const std::shared_ptr<std::string>& error_message_content_,
+      const std::shared_ptr<std::function<void()>>& error_message_handler_ ): io(io_), sock(sock_), screen(screen_), messages(messages_), clientAccount(clientAccount_), recipients(recipients_), currentScreen(currentScreen_), error_message_content(error_message_content_), error_message_handler(error_message_handler_) {
 
 
     option.transform = [](InputState state){
@@ -206,35 +226,42 @@ namespace screens {
     inputWrapper = CatchEvent(input_, [&](Event e){
       if(e == Event::Return){
         if(recipients->size() > 0 && !this->INPUT_TEXT.empty()){
-          json_data["name"] = clientAccount->userID(0).name();
-          json_data["fingerprint"] = clientAccount->primaryFingerprint();
-          json_data["date"] = "2026-09-12";
-          json_data["status"] = 200;
-          json_data["data"] = this->INPUT_TEXT;
+          try{
+
+            json_data["name"] = clientAccount->userID(0).name();
+            json_data["fingerprint"] = clientAccount->primaryFingerprint();
+            json_data["date"] = "2026-09-12";
+            json_data["status"] = 200;
+            json_data["data"] = this->INPUT_TEXT;
         
+            std::string encrypted = client::send_data(recipients, json_data);
 
-          Component message = std::make_shared<Message>(
-            json_data["name"].get<std::string>(),
-            json_data["fingerprint"].get<std::string>(),
-            json_data["date"].get<std::string>(),
-            json_data["status"].get<int>(),
-            json_data["data"].get<std::string>()
-          );
+            Component message = std::make_shared<Message>(
+              json_data["name"].get<std::string>(),
+              json_data["fingerprint"].get<std::string>(),
+              json_data["date"].get<std::string>(),
+              json_data["status"].get<int>(),
+              json_data["data"].get<std::string>()
+            );
 
-          this->messages->push_back(message);
+            this->messages->push_back(message);
 
-          //std::string encrypted = client::send_data(recipients, json_data);
+            asio::post(*io, [data = encrypted, this]() mutable {
+              data.push_back('\0');
+              asio::async_write(*sock, asio::buffer(data.data(), data.size()), [this](auto, auto){ });
+              screen->PostEvent(Event::Custom);
+            });
+            this->INPUT_TEXT.clear();
 
-
-        asio::post(*io, [data = this->INPUT_TEXT, this]() mutable {
-          data.push_back('\0');
-          asio::async_write(*sock, asio::buffer(data.data(), data.size()), [this](auto, auto){ });
-          screen->PostEvent(Event::Custom);
-        });
-
-          this->INPUT_TEXT.clear();
+          }
+          catch (const std::runtime_error& err){
+            *error_message_content = err.what();
+            *error_message_handler = [&]{
+              currentScreen = static_cast<int>(Screens::ClientScreen);
+            };
+            currentScreen = static_cast<int>(Screens::ErrorMessage);
+          }
         }
-        this->INPUT_TEXT.clear();
         return true;
       }
       return false;
