@@ -21,6 +21,8 @@
 #include <initializer_list>
 #include <functional>
 
+#include <client/client_config.cpp>
+
 enum class Screens : char { Login = 0, RecipientMenu = 1, ClientScreen = 2, PassphrasePrompt = 3, ErrorMessage = 4};
 
 #include <client/client_config.cpp>
@@ -245,11 +247,13 @@ namespace screens {
             );
 
             this->messages->push_back(message);
-
-            asio::post(*io, [data = encrypted, this]() mutable {
-              data.push_back('\0');
-              asio::async_write(*sock, asio::buffer(data.data(), data.size()), [this](auto, auto){ });
-              screen->PostEvent(Event::Custom);
+            
+            asio::post(*io, [date = encrypted, this]{
+              client::write(sock, std::move(date), [this](asio::error_code er){
+                if(!er){
+                  screen->PostEvent(Event::Custom);
+                }
+              });
             });
             this->INPUT_TEXT.clear();
 

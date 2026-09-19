@@ -215,6 +215,38 @@ namespace screens {
 
   bool ChatMessageError::Focusable() const { return true; }
 
+  /* >=====> The Connection Message Component <=====< */
+  class ConnectionMessage : public ComponentBase {
+
+    std::shared_ptr<ScreenInteractive> screen;
+
+    public:
+      ConnectionMessage(std::shared_ptr<ScreenInteractive>);
+      Element OnRender(void) override;
+      bool OnEvent(Event) override;
+      bool Focusable(void) const final;
+  };
+
+  ConnectionMessage::ConnectionMessage(std::shared_ptr<ScreenInteractive> screen_) : screen(screen_) {}
+
+  Element ConnectionMessage::OnRender(){
+    return vbox({
+      text(" ── [*] Connection Status ── ") | color(Color::Green) | center,
+      separatorHeavy(),
+      paragraphAlignCenter(" Connecting to the server... ") | color(Color::White) | dim | borderEmpty
+    }) | size(WIDTH, GREATER_THAN, 30) | borderHeavy | color(Color::Cyan) | center | borderDouble;
+  }
+
+  bool ConnectionMessage::OnEvent(Event e){
+    if(e == Event::Escape || e == Event::Character('q') || e == Event::Character('Q') ){
+      screen->Exit();
+      return true;
+    }
+    return false;
+  }
+
+  bool ConnectionMessage::Focusable() const { return true; }
+
 }
 
 #endif // !MESSAGE_SCREENS_HPP

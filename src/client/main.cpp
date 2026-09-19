@@ -1,10 +1,13 @@
 #include <client/main.hpp>
+#include <fstream>
 using namespace ftxui;
 
+std::ofstream file("text.txt");
 
 auto io = std::make_shared<asio::io_context>();
 auto sock = std::make_shared<tcp::socket>(*io);
-
+auto isConnected = std::make_shared<bool>(false);
+int increaser = 0;
 auto ui = std::make_shared<ScreenInteractive>(ScreenInteractive::Fullscreen());
 
 std::shared_ptr<GpgME::Key> clientAccount = std::make_shared<GpgME::Key>();
@@ -17,6 +20,10 @@ std::thread tcp_connection (const char* ip_address, const char* port){
   return std::thread([ep]{
     client::connect(io, sock, ep, []{
       client::read_loop(io, sock, [](std::string data){
+        
+
+        file << data;
+
 
         try{
 
@@ -44,6 +51,7 @@ std::thread tcp_connection (const char* ip_address, const char* port){
       });
     });
     io->run();
+    file.close();
   });
 }
 
@@ -59,6 +67,7 @@ int main(int argc, char **argv) {
 
     std::shared_ptr<std::vector<GpgME::Key>> recipientKeys =  std::make_shared<std::vector<GpgME::Key>>();
   
+    std::shared_ptr<screens::ConnectionMessage> connectionMessage = std::make_shared<screens::ConnectionMessage>(ui);
 
     std::shared_ptr<std::function<void()>> error_message_handler = std::make_shared<std::function<void()>>();
     std::shared_ptr<std::string> error_message = std::make_shared<std::string>();
