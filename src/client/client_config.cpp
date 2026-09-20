@@ -27,19 +27,16 @@ using namespace nlohmann;
 
 namespace client {
 
-  // --- big-endian helpers (must match the server) ---
-  inline uint32_t decode_u32_be(const unsigned char* p) {
-    return (uint32_t(p[0]) << 24) |
-           (uint32_t(p[1]) << 16) |
-           (uint32_t(p[2]) <<  8) |
-           (uint32_t(p[3])      );
+
+  uint32_t decode_u32 (const unsigned char* p){
+    return (uint32_t(p[0]) << 24) | (uint32_t(p[1]) << 16) | (uint32_t(p[2]) << 8) | uint32_t(p[3]);
   }
 
-  inline void encode_u32_be(uint32_t v, unsigned char* p) {
-    p[0] = (v >> 24) & 0xFF;
-    p[1] = (v >> 16) & 0xFF;
-    p[2] = (v >>  8) & 0xFF;
-    p[3] = (v      ) & 0xFF;
+  void encode_u32 (uint32_t h, unsigned char * p){
+    p[0] = (h >> 24) & 0xFF;
+    p[1] = (h >> 16) & 0xFF;
+    p[2] = (h >> 8) & 0xFF;
+    p[3] = (h) & 0xFF;
   }
 
   std::string send_data (const std::shared_ptr<std::vector<GpgME::Key>>& keys, const json& j){
@@ -72,9 +69,10 @@ namespace client {
         return;
       }
 
-      uint32_t n = decode_u32_be(len_buf->data());
+      uint32_t n = decode_u32(len_buf->data());
 
       constexpr uint32_t MAX_MSG = 64u * 1024u * 1024u;
+
       if(n == 0 || n > MAX_MSG){
         asio::error_code ignored;
         sock->shutdown(tcp::socket::shutdown_both, ignored);
@@ -117,11 +115,16 @@ namespace client {
 
   void write (const std::shared_ptr<tcp::socket>& sock, std::string data, std::function<void(asio::error_code)> handler){
 
+    constexpr uint32_t MAX_MSG = 64u * 1024u * 1024u;
+     
+    if (data.empty() || data.size() > MAX_MSG){
+      throw std::runtime_error(" [!] MESSAGE SIZE ERROR \n The message either has exceeded the limit size (64MB) or it is empty.");
+    }
+
     std::shared_ptr<std::string> framed = std::make_shared<std::string>();
     framed->resize(4 + data.size());
 
-    encode_u32_be(static_cast<uint32_t>(data.size()),
-                  reinterpret_cast<unsigned char*>(&(*framed)[0]));
+    encode_u32(static_cast<uint32_t>(data.size()), std::bit_cast<unsigned char*>(&(*framed)[0]));
 
     std::copy(data.begin(), data.end(), framed->begin() + 4);
 
