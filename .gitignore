@@ -1,5 +1,7 @@
 build
 lib/ftxui/*
 lib/ftxui/.gitkeep
+lib/fmt/*
+lib/fmt/.gitkeep
 .log.sha256
 .logs.txt

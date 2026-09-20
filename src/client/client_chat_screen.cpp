@@ -13,13 +13,16 @@
 
 #include <nlohmann/json.hpp>
 
-#include <string>
+#include <fmt/format.h>
+#include <fmt/chrono.h>
+
 #include <cstring>
 #include <vector>
 #include <memory>
 #include <cstddef>
 #include <initializer_list>
 #include <functional>
+#include <chrono>
 
 #include <client/client_config.cpp>
 
@@ -87,15 +90,15 @@ namespace screens {
   Element Message::OnRender(){
     return vbox({
       hbox({
-        text(this->NAME) | color(Color::Cyan),
+        text(' ' + this->NAME + ' ') | color(Color::Cyan),
         separatorHeavy(),
-        text(this->FINGERPRINT) | color(Color::Blue),
+        text(' ' + this->FINGERPRINT + ' ') | color(Color::Blue),
         separatorHeavy(),
         filler(),
         separatorHeavy(),
-        text(this->DATE) | color(Color::Yellow),
+        text(' ' + this->DATE + ' ') | color(Color::Yellow),
         separatorHeavy(),
-        text(this->STATUS == 200? "Deliverd" : "Failed") | color(Color::Cyan)
+        text(this->STATUS == 200? " Delivered " : " Failed ") | color(Color::Cyan)
       }),
       separatorHeavy(),
       paragraph(this->DATA) | color(Color::White)
@@ -232,7 +235,7 @@ namespace screens {
 
             json_data["name"] = clientAccount->userID(0).name();
             json_data["fingerprint"] = clientAccount->primaryFingerprint();
-            json_data["date"] = "2026-09-12";
+            json_data["date"] = std::format("{:%Y-%m-%d %H:%M}", std::chrono::system_clock::now());
             json_data["status"] = 200;
             json_data["data"] = this->INPUT_TEXT;
         

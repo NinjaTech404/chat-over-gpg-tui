@@ -2,8 +2,6 @@
 #include <fstream>
 using namespace ftxui;
 
-std::ofstream file("text.txt");
-
 auto io = std::make_shared<asio::io_context>();
 auto sock = std::make_shared<tcp::socket>(*io);
 auto isConnected = std::make_shared<bool>(false);
@@ -20,10 +18,6 @@ std::thread tcp_connection (const char* ip_address, const char* port){
   return std::thread([ep]{
     client::connect(io, sock, ep, []{
       client::read_loop(io, sock, [](std::string data){
-        
-
-        file << data;
-
 
         try{
 
@@ -51,7 +45,6 @@ std::thread tcp_connection (const char* ip_address, const char* port){
       });
     });
     io->run();
-    file.close();
   });
 }
 
