@@ -235,7 +235,7 @@ namespace screens {
 
             json_data["name"] = clientAccount->userID(0).name();
             json_data["fingerprint"] = clientAccount->primaryFingerprint();
-            json_data["date"] = std::format("{:%Y-%m-%d %H:%M}", std::chrono::system_clock::now());
+            json_data["date"] = fmt::format("{:%Y-%m-%d %H:%M}", std::chrono::system_clock::now());
             json_data["status"] = 200;
             json_data["data"] = this->INPUT_TEXT;
         
