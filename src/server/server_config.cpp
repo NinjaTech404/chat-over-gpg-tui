@@ -19,19 +19,15 @@ using tcp = asio::ip::tcp;
 
 namespace server{
 
-  // --- big-endian helpers (file-local) ---
-  inline uint32_t decode_u32_be(const unsigned char* p) {
-    return (uint32_t(p[0]) << 24) |
-           (uint32_t(p[1]) << 16) |
-           (uint32_t(p[2]) <<  8) |
-           (uint32_t(p[3])      );
+  uint32_t decode_u32 (const unsigned char* p){
+    return (uint32_t(p[0]) << 24) | (uint32_t(p[1]) << 16) | (uint32_t(p[2]) << 8) | uint32_t(p[3]);
   }
 
-  inline void encode_u32_be(uint32_t v, unsigned char* p) {
-    p[0] = (v >> 24) & 0xFF;
-    p[1] = (v >> 16) & 0xFF;
-    p[2] = (v >>  8) & 0xFF;
-    p[3] = (v      ) & 0xFF;
+  void encode_u32 (uint32_t h, unsigned char * p){
+    p[0] = (h >> 24) & 0xFF;
+    p[1] = (h >> 16) & 0xFF;
+    p[2] = (h >> 8) & 0xFF;
+    p[3] = (h) & 0xFF;
   }
 
   void read_loop(const std::shared_ptr<asio::io_context>& io, const std::shared_ptr<tcp::socket>& sock, const std::shared_ptr<std::vector<std::shared_ptr<tcp::socket>>>& sockets, std::function<void(std::shared_ptr<std::string>)> handler){
@@ -49,7 +45,7 @@ namespace server{
         return;
       }
 
-      uint32_t n = decode_u32_be(len_buf->data());
+      uint32_t n = decode_u32(len_buf->data());
 
       constexpr uint32_t MAX_MSG = 64u * 1024u * 1024u;
       if(n == 0 || n > MAX_MSG){
@@ -97,12 +93,9 @@ namespace server{
         sockets->push_back(sock);
         read_loop(io, sock, sockets, [sock, sockets](std::shared_ptr<std::string> data){
 
-          // Re-frame as [4-byte BE length][payload] so clients can read it back
-          // with the same length-prefixed protocol.
           std::shared_ptr<std::string> framed = std::make_shared<std::string>();
           framed->resize(4 + data->size());
-          encode_u32_be(static_cast<uint32_t>(data->size()),
-                        reinterpret_cast<unsigned char*>(&(*framed)[0]));
+          encode_u32(static_cast<uint32_t>(data->size()), std::bit_cast<unsigned char*>(&(*framed)[0]));
           std::copy(data->begin(), data->end(), framed->begin() + 4);
 
           for(auto& socket : *sockets) {
