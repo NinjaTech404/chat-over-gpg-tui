@@ -5,6 +5,7 @@
 #include <ftxui/component/component.hpp>
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/component/screen_interactive.hpp>
+#include <ftxui/screen/terminal.hpp>
 
 #include <gpgme++/context.h>
 #include <gpgme++/key.h>
@@ -20,6 +21,8 @@
 #include <memory>
 #include <cstddef>
 
+#include <client/scroller.cpp>
+
 namespace gpg_screens{
 
   using namespace ftxui;
@@ -31,8 +34,8 @@ namespace gpg_screens{
     std::string HEADER = " You might select only one GPG account of yours.\n "
                          " NOTE: make sure your PRIVATE/SECRET key is present. ";
    
-    std::string FOOTER = " Use the arows up/down or the k/j buttons to select the key \n"
-                         " press ENTER to confirm or ESC/Q to quit. ";
+    std::string FOOTER = " Use the ARROWS (\u2191/\u2193) or the (K/J) buttons to select the key \n"
+                         " press (ENTER) to confirm or (ESC/Q) to quit. ";
 
     std::vector<GpgME::Key> keys;
     
@@ -41,8 +44,9 @@ namespace gpg_screens{
     std::shared_ptr<ScreenInteractive> screen;
     std::shared_ptr<asio::io_context> io;
     std::shared_ptr<tcp::socket> sock;
-   
-    
+
+    Dimensions terminal_size = Terminal::Size();
+
     public:
       login(std::shared_ptr<asio::io_context>, std::shared_ptr<tcp::socket>, std::shared_ptr<ScreenInteractive>);
       GpgME::Key getSelected();
@@ -112,8 +116,8 @@ namespace gpg_screens{
       separatorDouble(),
       paragraphAlignCenter(" It seems that you either don't have GnuPG installed, \n you haven't yet initialized your keyrings or you \n didn't CREATE/IMPORT your personal GnuPG keys. \n please manually check that you have one. ") | color(Color::Yellow),
       separatorDouble(),
-      paragraphAlignCenter(" press ESC/Q to quit. ") | color(Color::Magenta)
-    }) | borderDouble | color(Color::Blue) | center;
+      paragraphAlignCenter(" press (ESC/Q) to quit. ") | color(Color::Magenta)
+    }) | size(HEIGHT, LESS_THAN, terminal_size.dimy + 40) | borderDouble | color(Color::Blue) | center;
 
     Element keysMenu = vbox({
       paragraphAlignCenter(this->HEADER) | color(Color::Yellow),
@@ -121,7 +125,7 @@ namespace gpg_screens{
       vbox(gpgAccounts),
       separatorDouble(),
       paragraphAlignCenter(this->FOOTER) | color(Color::Magenta)
-    }) | borderDouble | color(Color::Blue) | center;
+    }) | size(HEIGHT, LESS_THAN, terminal_size.dimy + 40) | borderDouble | color(Color::Blue) | center;
 
     return keys.size() > 0? keysMenu : defaultMessage;
   }
@@ -164,9 +168,9 @@ namespace gpg_screens{
 
     std::string HEADER = " Select the recipient (PUBLIC key) accounts to start chatting. \n"
                          " You can select multiple recipients keys. ";
-    std::string FOOTER = " Use the arows (UP/DOWN) or the (K/J) buttons to navigate. \n"
+    std::string FOOTER = " Use the ARROWS (\u2191/\u2193) or the (K/J) buttons to navigate. \n"
                          " Press (T) to select a recipient key or (U) to unselect. \n"
-                         " Press ENTER to confirm or ESC/Q to quit. ";
+                         " Press (ENTER) to confirm or (ESC/Q) to quit. ";
 
     std::shared_ptr<ScreenInteractive> screen;
     std::shared_ptr<asio::io_context> io;
@@ -182,6 +186,8 @@ namespace gpg_screens{
     Element getTrustLevel(GpgME::Key);
 
     bool isRecipientKeySelected (GpgME::Key);
+
+    Dimensions terminal_size = Terminal::Size();
 
     public:
       recipientMenu(std::shared_ptr<asio::io_context>, std::shared_ptr<tcp::socket>, std::shared_ptr<ScreenInteractive>);
@@ -246,7 +252,7 @@ namespace gpg_screens{
       paragraphAlignCenter(" It seems that you either don't have GnuPG installed, \n you haven't yet initialized your keyrings or you \n didn't CREATE/IMPORT your personal GnuPG keys. \n please manually check that you have one. ") | color(Color::Yellow),
       separatorDouble(),
       paragraphAlignCenter(" press ESC/Q to quit. ") | color(Color::Magenta)
-    }) | borderDouble | color(Color::Blue) | center;
+    }) | size(HEIGHT, LESS_THAN, terminal_size.dimy + 40) | borderDouble | color(Color::Blue) | center;
 
 
     Element trustConcern = vbox({
@@ -284,12 +290,12 @@ namespace gpg_screens{
       vbox({
         paragraphAlignCenter(this->HEADER) | color(Color::Yellow),
         separatorDouble(),
-        vbox(gpgAccounts),
+        vbox(gpgAccounts) | flex,
         separatorDouble(),
         paragraphAlignCenter(this->FOOTER) | color(Color::Magenta)
       }) | borderDouble | color(Color::Blue),
       trustLevelLegend
-    }) | center; 
+    }) | size(HEIGHT, LESS_THAN, terminal_size.dimy + 40) | center; 
      
     return keys.size() > 0? keysMenu : defaultMessage;
   }

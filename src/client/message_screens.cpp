@@ -10,6 +10,9 @@
 #include <asio/ip/tcp.hpp>
 
 #include <functional>
+#include <cstdlib>
+#include <string>
+#include <string_view>
 
 namespace screens {
   
@@ -31,6 +34,8 @@ namespace screens {
     Component button;
     Component container;
 
+    std::string pick_cancel_glyph(void);
+
     public:
       ErrorMessage(std::shared_ptr<asio::io_context>, std::shared_ptr<tcp::socket>, std::shared_ptr<ScreenInteractive>, std::shared_ptr<std::string>, std::shared_ptr<std::function<void()>>);
       Element OnRender() override;
@@ -51,20 +56,19 @@ namespace screens {
       return ele;
     };
 
-    button = Button("OK", [&]{ (*this->handler)(); }, options);
+    button = Button(this->pick_cancel_glyph(), [&]{ (*this->handler)(); }, options);
     Add(button);
   }
+
   Element ErrorMessage::OnRender(){
     return vbox({
-      hbox({ text(" [!] ERROR MESSAGE ") }) | color(Color::Yellow) | center,
+      hbox({ 
+        text("     [!] ERROR MESSAGE ") | center | color(Color::Yellow) | flex,
+        separatorDouble(),
+        button->Render() | size(WIDTH, EQUAL, 3)
+      }),
       separatorDouble(),
       paragraphAlignCenter(this->ERROR->data()) | color(Color::White) | borderEmpty,
-      separatorDouble(),
-      hbox({ 
-        separatorDouble(),
-        button->Render() | size(WIDTH, EQUAL, 6),
-        separatorDouble()
-      }) | center
     }) | size(WIDTH, GREATER_THAN, 40) | borderDouble | color(Color::Red) | center;
   }
 
@@ -88,6 +92,42 @@ namespace screens {
 
   bool ErrorMessage::Focusable() const { return true; }
 
+  std::string ErrorMessage::pick_cancel_glyph(){
+    
+    if (const char* env = std::getenv("CANCEL_GLYPH")) {
+        return env;
+    }
+
+    // 2. Respect NO_COLOR / dumb terminals — no fancy Unicode
+    if (const char* term = std::getenv("TERM")) {
+        if (std::string_view(term) == "dumb") {
+            return "x";
+        }
+    }
+
+    // 3. Check locale for UTF-8
+    if (const char* lang = std::getenv("LC_ALL")) {
+        if (std::string_view(lang).find("UTF-8") != std::string_view::npos ||
+            std::string_view(lang).find("utf8")  != std::string_view::npos) {
+            return "\u2715";   // ✕
+        }
+    }
+    if (const char* lang = std::getenv("LC_CTYPE")) {
+        if (std::string_view(lang).find("UTF-8") != std::string_view::npos ||
+            std::string_view(lang).find("utf8")  != std::string_view::npos) {
+            return "\u2715";
+        }
+    }
+    if (const char* lang = std::getenv("LANG")) {
+        if (std::string_view(lang).find("UTF-8") != std::string_view::npos ||
+            std::string_view(lang).find("utf8")  != std::string_view::npos) {
+            return "\u2715";
+        }
+    }
+
+    // 4. Fallback: ASCII
+    return "x";
+  }
 
   /* >=====> PassPhrase Prompt <====< */
   
@@ -126,7 +166,7 @@ namespace screens {
         return ele;
       };
 
-      input_field = Input(passphrase.get(), "Enter Passphrase...", input_options);
+      input_field = Input(passphrase.get(), "Enter Passphrase", input_options);
 
       // Custom Simple Button Styling matching your design
       button_options = ButtonOption::Simple();

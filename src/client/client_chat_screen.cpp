@@ -23,6 +23,7 @@
 #include <initializer_list>
 #include <functional>
 #include <chrono>
+#include <exception>
 
 #include <client/client_config.cpp>
 
@@ -183,6 +184,7 @@ namespace screens {
     
 
     InputOption option;
+    int cursor_pos;
     Component input_;
     Component inputWrapper;
     Component container_;
@@ -214,6 +216,10 @@ namespace screens {
       const std::shared_ptr<std::string>& error_message_content_,
       const std::shared_ptr<std::function<void()>>& error_message_handler_ ): io(io_), sock(sock_), screen(screen_), messages(messages_), clientAccount(clientAccount_), recipients(recipients_), currentScreen(currentScreen_), error_message_content(error_message_content_), error_message_handler(error_message_handler_) {
 
+
+
+    cursor_pos = 0;
+    option.cursor_position = &cursor_pos;
 
     option.transform = [](InputState state){
       Element ele = state.element;
@@ -268,7 +274,19 @@ namespace screens {
             };
             currentScreen = static_cast<int>(Screens::ErrorMessage);
           }
+          catch (const std::exception& err){
+            *error_message_content = err.what();
+            *error_message_handler = [&]{
+              currentScreen = static_cast<int>(Screens::ClientScreen);
+            };
+            currentScreen = static_cast<int>(Screens::ErrorMessage);
+          }
         }
+        return true;
+      }
+      if(e == Event::ArrowDownCtrl){
+        this->INPUT_TEXT += '\n';
+        this->cursor_pos = this->INPUT_TEXT.size();
         return true;
       }
       return false;

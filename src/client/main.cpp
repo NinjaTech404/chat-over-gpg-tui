@@ -116,26 +116,28 @@ int main(int argc, char **argv) {
 
     Component recipientUIWrapper = CatchEvent(recipientUI, [&](Event e){
       if(e == Event::Return){
-
+        bool allChecked = false;
         *recipientKeys = recipientUI->getRecipientsKeys();
         if(recipientKeys->size() > 0){
 
-          for(auto& key : *recipientKeys){
-            try{
+          try{
+            for(auto& key : *recipientKeys){
               if(gpg::can_key_encrypt(key)){
-                currentScreen = static_cast<int>(Screens::ClientScreen);
+                allChecked = true;
               }
-
             }
-            catch (const std::runtime_error& err){
+          }
+
+          catch (const std::runtime_error& err){
+              allChecked = false;
               *error_message = err.what();
               *error_message_handler = [&]{
                 currentScreen = static_cast<int>(Screens::RecipientMenu);
               };
               currentScreen = static_cast<int>(Screens::ErrorMessage);
-            }
           }
-          
+
+          if(allChecked) currentScreen = static_cast<int>(Screens::ClientScreen);
 
         }
 
