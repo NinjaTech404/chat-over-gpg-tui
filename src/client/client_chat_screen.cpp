@@ -307,9 +307,9 @@ namespace screens {
       vbox({
         text(" ONLINE CLIENTS ") | bold | color(Color::Cyan),
         separatorDouble(),
-        hbox({ text(" ● ") | color(Color::Green), text(" Alice "), filler(), text("42EF...91DD") | dim }) | color(Color::White),
-        hbox({ text(" ● ") | color(Color::Green), text(" Bob "),   filler(), text("A1B2...34C5") | dim })  | color(Color::White),
-        hbox({ text(" ● ") | color(Color::GrayDark), text(" Charlie "), filler(), text("Offline") | dim })  | color(Color::White),
+        vbox({
+          paragraphAlignCenter("── This Feature ──\n── is Under Construction ──") | bold,
+        }) | center | flex,
         filler()
       }) | flex,
 
@@ -320,10 +320,7 @@ namespace screens {
         separatorDouble(),
         hbox({ text(" • Enter ") | bold, filler(), text("Send message") | dim }) | color(Color::Cyan),
         hbox({ text(" • Tab ")   | bold, filler(), text("Focus next input") | dim }) | color(Color::Cyan),
-        hbox({ text(" • Esc ")   | bold, filler(), text("Toggle sidebar") | dim }) | color(Color::Cyan),
-        hbox({ text(" • ↑ / ↓ ") | bold, filler(), text("Scroll messages") | dim }) | color(Color::Cyan),
-        hbox({ text(" • Ctrl+C ") | bold, filler(), text("Quit application") | dim }) | color(Color::Cyan),
-        filler()
+        hbox({ text(" • Esc ")   | bold, filler(), text("Exit/Quit") | dim }) | color(Color::Cyan),
       }) | flex,
 
     }) | flex;
