@@ -5,22 +5,27 @@
 
   #define NOMINMAX              // kill min/max macros
   #define WIN32_LEAN_AND_MEAN   // skip rarely-used WinAPI junk
-  #include <windows.h>
-  #include <psapi.h> // GetProcessMemoryInfo
+  #include <windows.h> // for GetCurrentProcessId();
+  #include <tlhelp32.h> // for process thread count function
 
 #else
 
-  #include <cstdio> //fopen, fscanf
-  #include <unistd.h> // sysconf
-
+  #include <unistd.h> // for getpid();
+  #include <fstream> // for process thread count function
 #endif
 
 #include <string>
+#include <cmath>
+#include <chrono>
+#include <memory>
 
 #include <fmt/format.h>
-#include <cpumem_monitor/cpumem_monitor.h>
+
+#include <ProcessInfo.h> // for Memory/Cpu usage
 
 namespace server{
+
+  ProcessInfo process; // for Memory/Cpu usage
 
   std::string currentPid() {
     #ifdef _WIN32
@@ -30,35 +35,61 @@ namespace server{
     #endif
   }
 
+  std::string currentCpuUsage(){
+    return fmt::format("{:.1f}%", process.GetCpuUsage());
+  }
 
-  std::string currentMemoryBytes() {
+  std::string currentMemoryBytes(){
+    double usage = static_cast<double>( process.GetMemoryUsage() / static_cast<unsigned int>(std::pow(1024u, 2)) );
+    return fmt::format("{:.1f}MB", usage);
+  }
+
+  std::string getUptime (const std::shared_ptr<std::chrono::steady_clock::time_point>& start_time){
+    auto now = std::chrono::steady_clock::now();
+    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(now - (*start_time)).count();
+    auto hour = seconds / 3600;
+    auto minute = (seconds % 3600) / 60;
+    auto second = (seconds % 60);
+    return fmt::format("{:02}:{:02}:{:02}", hour, minute, second);
+  }
+
+
+  int getThreadCount(){
     #ifdef _WIN32
 
-      PROCESS_MEMORY_COUNTERS pmc{};
-      if (GetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc))) return fmt::format("{:.1f} MB", static_cast<unsigned long long>(pmc.WorkingSetSize) / 1024.0 / 1024.0);
-      return 0;
+      DWORD pid = GetCurrentProcessId();
+      HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+      if (snap == INVALID_HANDLE_VALUE) return -1;
 
-    #elif defined(__linux__)
+        THREADENTRY32 te;
+        te.dwSize = sizeof(te);
+        int count = 0;
 
-      // /proc/self/statm: field 2 = RSS in pages
-      long rssPages = 0;
-      if (FILE* f = fopen("/proc/self/statm", "r")) {
-          long vmPages = 0;
-          if (fscanf(f, "%ld %ld", &vmPages, &rssPages) != 2) rssPages = 0;
-          fclose(f);
+        if (Thread32First(snap, &te)) {
+          do {
+              if (te.th32OwnerProcessID == pid) count++;
+          } while (Thread32Next(snap, &te));
       }
-      return fmt::format("{:.1f} MB", static_cast<unsigned long long>(rssPages) * sysconf(_SC_PAGESIZE) / 1024.0 / 1024.0);
+
+      CloseHandle(snap);
+      return count;
 
     #else
-      return "0.0";   // unknown POSIX — implement per-platform
+
+      std::ifstream status("/proc/self/status");
+      std::string line;
+      while (std::getline(status, line)) {
+        if (line.compare(0, 8, "Threads:") == 0) {
+            return std::stoi(line.substr(8));
+        }
+      }
+
+    return -1;
+
     #endif
   }
 
-  std::string currentCpuUsage(){
-    SL::NET::CPUMemMonitor mon;
-    auto cpuusage = mon.getCPUUsage();
-    return fmt::format("{:.1f}%", cpuusage.ProcessUse);
-  }
+
 }
 
 #endif // !RESOURCES_CONFIG_HPP
