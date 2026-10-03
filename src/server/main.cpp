@@ -1,4 +1,3 @@
-
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/component/component.hpp>
 #include <ftxui/dom/elements.hpp>
@@ -21,8 +20,9 @@
 #include <server/server_config.cpp>
 #include <server/server_screens.cpp>
 
-
 using namespace ftxui;
+
+std::shared_ptr<std::chrono::steady_clock::time_point> start_time = std::make_shared<std::chrono::steady_clock::time_point>(std::chrono::steady_clock::now());
 
 std::shared_ptr<asio::io_context> io = std::make_shared<asio::io_context>();
 
@@ -48,7 +48,13 @@ int main(int argc, char** argv){
   std::thread run_server([&]{
     io->run();
   });
-
+  
+  std::thread render_interface([]{
+    while (true) {
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+      server_interface->PostEvent(Event::Custom);
+    }
+  });
 
   auto server_ip   = std::make_shared<std::string>(argv[1] ? argv [1] : "Null");
   auto server_port = std::make_shared<std::string>(argv[2] ? argv [2] : "Null");
@@ -58,12 +64,13 @@ int main(int argc, char** argv){
     server_name,
     server_ip,
     server_port,
-    sockets
+    sockets,
+    start_time
   );
 
   server_interface->Loop(server_dashboard);
 
   run_server.join();
-
+  render_interface.join();
   return 0;
 }

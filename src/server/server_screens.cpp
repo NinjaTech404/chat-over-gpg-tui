@@ -10,6 +10,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <chrono>
 
 #include <server/resources_config.cpp>
 
@@ -23,6 +24,7 @@ namespace screens{
     std::shared_ptr<std::string> SERVER_IP;
     std::shared_ptr<std::string> SERVER_PORT;
     std::shared_ptr<std::vector<std::shared_ptr<asio::ip::tcp::socket>>> CLIENTS;
+    std::shared_ptr<std::chrono::steady_clock::time_point> START_TIME;
 
     // Cyberpunk neon palette
     Color NEON_CYAN    = Color::RGB(0, 255, 255);   // Electric cyan
@@ -39,7 +41,8 @@ namespace screens{
         std::shared_ptr<std::string>,
         std::shared_ptr<std::string>,
         std::shared_ptr<std::string>,
-        std::shared_ptr<std::vector<std::shared_ptr<asio::ip::tcp::socket>>>
+        std::shared_ptr<std::vector<std::shared_ptr<asio::ip::tcp::socket>>>,
+        std::shared_ptr<std::chrono::steady_clock::time_point>
       );
 
       Element OnRender(void) override;
@@ -51,12 +54,14 @@ namespace screens{
     std::shared_ptr<std::string> server_name,
     std::shared_ptr<std::string> server_ip,
     std::shared_ptr<std::string> server_port,
-    std::shared_ptr<std::vector<std::shared_ptr<asio::ip::tcp::socket>>> clients
+    std::shared_ptr<std::vector<std::shared_ptr<asio::ip::tcp::socket>>> clients,
+    std::shared_ptr<std::chrono::steady_clock::time_point> start_time
   ) :
     SERVER_NAME(server_name),
     SERVER_IP(server_ip),
     SERVER_PORT(server_port),
-    CLIENTS(clients)
+    CLIENTS(clients),
+    START_TIME(start_time)
   {}
 
   Element ServerDashBoard::OnRender(){
@@ -108,13 +113,13 @@ namespace screens{
         text("▓▒░     PROCESS     ░▒▓") | bold | color(NEON_GREEN),
         separatorDouble(),
         text(" [UPT] ") | color(DIM_GREY),
-        text(" 02:34:17 ") | color(NEON_GREEN),
+        text(' ' + server::getUptime(this->START_TIME) + ' ') | color(NEON_GREEN),
         separatorDouble(),
         text(" [THR] ") | color(DIM_GREY),
-        text(" 08 ") | color(NEON_GREEN),
+        text(' ' + std::to_string(server::getThreadCount()) + ' ') | color(NEON_GREEN),
         separatorDouble(),
         text(" >_ ") | bold | color(NEON_MAGENTA),
-        text(" client " + std::string(*this->SERVER_IP) + std::string(*this->SERVER_PORT) + ' ') | color(NEON_CYAN) | bold
+        text(" client " + std::string(*this->SERVER_IP) + ' ' + std::string(*this->SERVER_PORT) + ' ') | color(NEON_CYAN) | bold
       }) | borderDouble | color(NEON_GREEN)
 
     }) | borderEmpty;

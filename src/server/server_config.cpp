@@ -15,6 +15,7 @@
 #include <functional>
 #include <algorithm>
 
+
 using tcp = asio::ip::tcp;
 
 namespace server{
@@ -92,7 +93,7 @@ namespace server{
       if(!ec){
         sockets->push_back(sock);
         read_loop(io, sock, sockets, [sock, sockets](std::shared_ptr<std::string> data){
-
+          
           std::shared_ptr<std::string> framed = std::make_shared<std::string>();
           framed->resize(4 + data->size());
           encode_u32(static_cast<uint32_t>(data->size()), std::bit_cast<unsigned char*>(&(*framed)[0]));

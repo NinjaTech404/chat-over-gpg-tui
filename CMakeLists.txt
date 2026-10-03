@@ -24,6 +24,7 @@ add_executable(client ${CLIENT})
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/ftxui)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/fmt) # fmt-12.2.0
+add_subdirectory(${CMAKE_SOURCE_DIR}/lib/sys_info)
 
 find_package(Gpgmepp REQUIRED)
 
@@ -33,7 +34,7 @@ target_link_libraries(
   PRIVATE ftxui::dom
   PRIVATE ftxui::component
   PRIVATE fmt::fmt
-  Gpgmepp
+  PRIVATE Gpgmepp
 )
 
 target_link_libraries(
@@ -42,7 +43,8 @@ target_link_libraries(
   PRIVATE ftxui::dom
   PRIVATE ftxui::component
   PRIVATE fmt::fmt
-  Gpgmepp
+  PRIVATE Gpgmepp
+  PRIVATE sysinfo::core
 )
 
 
