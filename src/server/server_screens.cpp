@@ -11,11 +11,13 @@
 #include <memory>
 #include <vector>
 #include <chrono>
+#include <cstddef>
 
 #include <server/resources_config.cpp>
 
 namespace screens{
   using namespace ftxui;
+  
   /* >=====> SERVER MAIN DASHBOARD <=====< */
   class ServerDashBoard : public ComponentBase {
 
@@ -131,6 +133,31 @@ namespace screens{
 
   bool ServerDashBoard::Focusable() const { return true; }
 
+  /* >=====> Server Error Message <=====< */
+  class ServerErrorMessage : public ComponentBase {
+
+    // Cyberpunk Colors
+    Color NEON_YELLOW  = Color::RGB(255, 230, 0);   // Acid yellow
+    Color NEON_RED     = Color::RGB(255, 40, 80);   // Alert red
+    Color NEON_MAGENTA = Color::RGB(255, 0, 255);   // Hot magenta
+
+    std::shared_ptr<std::string> ERROR_TEXT;
+    public:
+      ServerErrorMessage(const std::shared_ptr<std::string>&);
+      Element OnRender() override;
+
+  };
+
+  ServerErrorMessage::ServerErrorMessage(const std::shared_ptr<std::string>& err) : ERROR_TEXT(err) {}
+
+  Element ServerErrorMessage::OnRender (){
+    return window(
+      text(" [!] Error Message ") | color(NEON_YELLOW),
+      vbox({
+        paragraphAlignCenter(*this->ERROR_TEXT) | color(NEON_RED) | borderEmpty
+      })
+    ) | color(NEON_MAGENTA) | borderEmpty;
+  }
 }
 
 #endif

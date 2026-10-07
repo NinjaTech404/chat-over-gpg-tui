@@ -2,8 +2,6 @@
 #include <ftxui/component/component.hpp>
 #include <ftxui/dom/elements.hpp>
 
-#include <nlohmann/json.hpp>
-
 #include <thread>
 #include <chrono>
 #include <iostream>
@@ -15,8 +13,6 @@
 #include <vector>
 #include <exception>
 
-#include <client/gpg_config.cpp>
-#include <client/client_config.cpp>
 #include <server/server_config.cpp>
 #include <server/server_screens.cpp>
 
@@ -31,26 +27,48 @@ std::shared_ptr<ftxui::ScreenInteractive> server_interface = std::make_shared<ft
 auto sockets = std::make_shared<std::vector<std::shared_ptr<tcp::socket>>>();
 
 int main(int argc, char** argv){
+  bool isError = false;
+  auto error_message_content = std::make_shared<std::string>("NO ERROR DETECTED");
+  Component server_error_message = std::make_shared<screens::ServerErrorMessage>(error_message_content);
 
-  if(argc != 4){
-    throw std::runtime_error(" [!] Invalid Arguments \n Usage: server <ip> <port> <server name>");
-    return -1;
+  try{
+    if(argc != 4){
+      throw std::runtime_error(" [!] Invalid Arguments \n Usage: server <ip> <port> <server name> ");
+    }
+  }
+  catch(const std::runtime_error& err){
+    *error_message_content = err.what();
+    isError = true;
   }
 
   auto work = asio::make_work_guard(*io);
 
-  tcp::endpoint ep ( asio::ip::make_address(argv[1]), std::stoi(argv[2]) );
+  try {
 
-  auto acceptor = std::make_shared<tcp::acceptor>(*io, ep);
+    tcp::endpoint ep ( asio::ip::make_address(argv[1]), static_cast<std::uint16_t>(std::stoi(argv[2])) );
 
-  server::acceptor(io, acceptor, sockets);
+    auto acceptor = std::make_shared<tcp::acceptor>(*io, ep);
+
+    server::acceptor(io, acceptor, sockets);
+
+  }
+  catch(const std::system_error& err){
+    std::string message = "\n Usage: server <ip> <port> <server name> ";
+    *error_message_content = err.what() + message;
+    isError = true;
+  }
+  catch(const std::out_of_range& err){
+    std::string message = " [!] Port Number must be 1-65535 ";
+    *error_message_content = message;
+    isError = true;
+  }
 
   std::thread run_server([&]{
     io->run();
   });
   
-  std::thread render_interface([]{
-    while (true) {
+  std::thread render_interface([&]{
+    while (!isError) {
       std::this_thread::sleep_for(std::chrono::seconds(1));
       server_interface->PostEvent(Event::Custom);
     }
@@ -68,9 +86,22 @@ int main(int argc, char** argv){
     start_time
   );
 
-  server_interface->Loop(server_dashboard);
+  if(!isError){
+    server_interface->Loop(server_dashboard);
+  }
 
+  else {
+    work.reset();
+    io->stop();
+    Element error_message = server_error_message->Render();
+    ftxui::Screen static_screen = ftxui::Screen::Create(ftxui::Dimension::Fit(error_message));
+    ftxui::Render(static_screen, error_message);
+    static_screen.Print();
+  }
+
+  
   run_server.join();
   render_interface.join();
+
   return 0;
 }
