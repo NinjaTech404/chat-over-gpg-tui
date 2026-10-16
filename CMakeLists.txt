@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.10...4.4.2)
 
+# >=====> Project Logo <=====<
+
+include(${CMAKE_SOURCE_DIR}/cmake/logo.cmake)
+
+
 # >=====> Project Info <=====<
 
 set(VERSION 0.1.0) # => Default Version
