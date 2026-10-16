@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.7)
+cmake_minimum_required(VERSION 3.10)
 project(sys_core)
 
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON) #lazy export win symbols (only for lib)
