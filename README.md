@@ -2,7 +2,11 @@
 
 <img src="assets/banner.svg" alt="cyber-chat, terminal chat built for Linux" width="100%">
 
-<img src="assets/logo.svg" alt="cyber-chat, terminal chat built for Linux" width="100%">
+---
+
+<img src="assets/logo.svg" alt="cyber-chat, terminal chat built for Linux" width="200">
+
+-- 
 
 <img src="assets/h-overview.svg" alt="Overview" height="64">
 
