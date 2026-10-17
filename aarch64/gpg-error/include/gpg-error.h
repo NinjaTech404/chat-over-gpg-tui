@@ -1130,14 +1130,13 @@ typedef struct
 {
   long _vers;
   union {
-    volatile char _priv[48];
+    volatile char _priv[40];
     long _x_align;
     long *_xp_align;
   } u;
 } gpgrt_lock_t;
 
 #define GPGRT_LOCK_INITIALIZER {1,{{0,0,0,0,0,0,0,0, \
-                                    0,0,0,0,0,0,0,0, \
                                     0,0,0,0,0,0,0,0, \
                                     0,0,0,0,0,0,0,0, \
                                     0,0,0,0,0,0,0,0, \
