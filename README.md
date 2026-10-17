@@ -2,6 +2,8 @@
 
 <img src="assets/banner.svg" alt="cyber-chat, terminal chat built for Linux" width="100%">
 
+<img src="assets/logo.svg" alt="cyber-chat, terminal chat built for Linux" width="100%">
+
 <img src="assets/h-overview.svg" alt="Overview" height="64">
 
 <img src="assets/card-overview.svg" alt="cyber-chat is a terminal chat with end-to-end encryption, built on the OpenPGP protocol, written in C++20 with FTXUI." width="840">
